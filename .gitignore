@@ -1,0 +1,14 @@
+.DS_Store
+TRASH
+__pycache__
+.cache
+.pytest_cache/
+*.pyc
+
+# IDE settings
+.idea
+.vscode
+
+# Jupyter caches
+.ipynb_checkpoints/
+
