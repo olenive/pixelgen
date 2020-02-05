@@ -15,12 +15,17 @@ class ImageConverter:
     def flat_hashable_from_rgba(
         rgba_array: np.ndarray
     ) -> Tuple[Iterable[Tuple[int, int, int, int]], Tuple[int, int, int]]:
+        """Flatten an array produced by reading an RGBA image into a vector of tuples of RGBA values.
+
+        Also return the shape of the original array.
+        """
         rows, columns, colours = np.shape(rgba_array)
         rgba_column = np.reshape(rgba_array, (rows * columns, colours))
         rgba_tuples = tuple(map(lambda x: tuple(x), rgba_column))
         return rgba_tuples, np.shape(rgba_array)
 
     def grid_from_rgba(rgba_array: np.ndarray) -> np.ndarray:
+        """Map an array produced by reading an RGBA image to a 2D array of cell types."""
         mapping = {
             tuple([0, 0, 0, 0]): -1,  # nothing -> -1
             tuple([0, 0, 0, 255]): 0,  # black -> 0

@@ -22,7 +22,7 @@ class TestImageConverter:
         expected_shape = (2, 3, 4)
         result = ImageConverter.flat_hashable_from_rgba(given)
         assert result[0] == expected_flat
-        assert result[1], expected_shape
+        assert result[1] == expected_shape
 
     def test_grid_from_rgba_creates_expected_array_from_5x5(self):
         """RGBA values from image are converted to -1, 0 or 1."""
