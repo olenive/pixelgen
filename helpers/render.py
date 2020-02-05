@@ -49,7 +49,9 @@ class InteractiveDisplay:
         """For now we are assuming all images come from PNG files."""
         return {path: self.load_png(path) for path in paths}
 
-    def __init__(self):
+    def __init__(self, grid_source_path: str):
+        self.grid_source_path = grid_source_path
+
         self.window_scale = 20
         self.window_width = 32 * self.window_scale
         self.window_height = 20 * self.window_scale
@@ -68,6 +70,22 @@ class InteractiveDisplay:
 
         # Load images (need to happen after a pygame display is initialised)
         self.images: Dict[str, pygame.Surface] = self.images_from_paths(self.image_paths)
+
+    def _draw_full_floor(self):
+        """Method for figuring out how things work, delete once things work."""
+        grid_rows = 5
+        grid_columns = 7
+        # grid = np.full((grid_rows, grid_columns), 0)
+        for irow in range(grid_rows):
+            for icol in range(grid_columns):
+                self.screen.blit(
+                    self.images["data/sprites/dummy_floor_sand.png"],
+                    MapGridToScreen.top_left_of_cell(
+                        grid_cell=np.array([irow, icol]),
+                        cell_dimenstions=np.array([32, 20]),
+                        top_left_position_of_grid=np.array([50, 50])
+                    ),
+                )
 
     def run(self):
         running = True
@@ -92,6 +110,7 @@ class InteractiveDisplay:
 
             if running:
                 self.screen.fill((0, 0, 0))
+                self._draw_full_floor()
                 # for n, button in enumerate(buttons):
                 #     screen.blit(button, rects[n])
                 #     if selected[n]:
