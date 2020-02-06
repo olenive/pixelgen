@@ -25,8 +25,8 @@ class TestMapGridToScreen:
         "cell, expected",
         [
             (np.array([0, 0]), np.array([100, 120])),
-            (np.array([1, 0]), np.array([132, 120])),
-            (np.array([2, 0]), np.array([164, 120])),
+            (np.array([1, 0]), np.array([100, 140])),
+            (np.array([2, 0]), np.array([100, 160])),
             (np.array([1, 1]), np.array([132, 140])),
         ]
     )
@@ -52,8 +52,8 @@ class TestMapGridToScreen:
         "cell, expected",
         [
             (np.array([0, 0]), np.array([100, 100])),
-            (np.array([1, 0]), np.array([132, 100])),
-            (np.array([2, 0]), np.array([164, 100])),
+            (np.array([1, 0]), np.array([100, 120])),
+            (np.array([2, 0]), np.array([100, 140])),
             (np.array([1, 1]), np.array([132, 120])),
         ]
     )
@@ -97,6 +97,49 @@ class TestPrepareForRendering:
         )
         compare_ids_positions_priorities(result, expected)
 
+    def test_ids_positions_priorities_for_tile_in_top_left_corner(self):
+        result = PrepareForRendering.ids_positions_priorities_for_tile(
+            tile_type=0,
+            cell_dimensions=np.array([32, 20]),
+            top_left_of_tile=np.array([100, 100]),
+        )
+        img = 'data/sprites/dummy_floor_sand.png'
+        expected = (
+            (img, np.array([100, 100]), (0, 120)),
+            # Note that priority depends on where the bottom of the floor tile starts, not its top left corner.
+        )
+        compare_ids_positions_priorities(result, expected)
+
+    def test_ids_positions_priorities_for_tile_in_row_2_column_3(self):
+        result = PrepareForRendering.ids_positions_priorities_for_tile(
+            tile_type=0,
+            cell_dimensions=np.array([32, 20]),
+            top_left_of_tile=np.array([164, 120]),
+        )
+        img = 'data/sprites/dummy_floor_sand.png'
+        expected = (
+            (img, np.array([164, 120]), (0, 140)),
+            # Note that priority depends on where the bottom of the floor tile starts, not its top left corner.
+        )
+        compare_ids_positions_priorities(result, expected)
+
+    def test_collect_images_for_grid_of_2x3_floor_tiles(self):
+        result = PrepareForRendering.collect_images_for_grid(
+            grid=np.full((2, 3), 0),
+            cell_dimensions=np.array([32, 20]),
+            top_left_position_of_grid=np.array([100, 100]),
+        )
+        img = 'data/sprites/dummy_floor_sand.png'
+        expected = (
+            (img, np.array([100, 100]), (0, 120)),
+            (img, np.array([132, 100]), (0, 120)),
+            (img, np.array([164, 100]), (0, 120)),
+            (img, np.array([100, 120]), (0, 140)),
+            (img, np.array([132, 120]), (0, 140)),
+            (img, np.array([164, 120]), (0, 140)),
+        )
+        compare_ids_positions_priorities(result, expected)
+
     def test_order_by_priority_returns_correct_order_based_on_priorites(self):
         unsorted_images_positions_priorities = (
             # e.g. some higher level tiles
@@ -128,4 +171,4 @@ class TestPrepareForRendering:
             ("img2", np.array([0, 15]), (2, 15)),
         )
         result = PrepareForRendering.order_by_priority(unsorted_images_positions_priorities)
-        assert result == expected
+        compare_ids_positions_priorities(result, expected)

@@ -15,8 +15,8 @@ class MapGridToScreen:
     ) -> np.ndarray:
         """Get the pixel position of the bottom left corner of the given cell in the grid."""
         bottom_left = np.copy(top_left_position_of_grid)
-        bottom_left[0] += cell_dimensions[0] * (grid_cell[0])
-        bottom_left[1] += cell_dimensions[1] * (1 + grid_cell[1])
+        bottom_left[0] += cell_dimensions[0] * (grid_cell[1])
+        bottom_left[1] += cell_dimensions[1] * (1 + grid_cell[0])
         return bottom_left
 
     def top_left_of_cell(
@@ -27,8 +27,8 @@ class MapGridToScreen:
     ) -> np.ndarray:
         """Get the pixel position of the top left corner of the given cell in the grid."""
         top_left = np.copy(top_left_position_of_grid)
-        top_left[0] += cell_dimensions[0] * (grid_cell[0])
-        top_left[1] += cell_dimensions[1] * (grid_cell[1])
+        top_left[0] += cell_dimensions[0] * (grid_cell[1])
+        top_left[1] += cell_dimensions[1] * (grid_cell[0])
         return top_left
 
 
@@ -59,11 +59,13 @@ class PrepareForRendering:
         top_left_of_tile: np.ndarray,
     ) -> Iterable[Tuple[str, np.array, Tuple[int, int]]]:
         """Make an iterable of tuples describing how to render a floor tile."""
+        cell_dims = np.copy(cell_dimensions)
+        top_left = np.copy(top_left_of_tile)
         return (
             (
                 "data/sprites/dummy_floor_sand.png",
-                top_left_of_tile,
-                (0, top_left_of_tile[1] + cell_dimensions[1])
+                top_left,
+                (0, top_left[1] + cell_dims[1]),
             ),
         )
 
@@ -87,8 +89,8 @@ class PrepareForRendering:
     def collect_images_for_grid(
         *,
         grid: np.ndarray,
-        cell_dimensions=np.array([32, 20]),
-        top_left_position_of_grid=np.array([50, 50])
+        cell_dimensions: np.ndarray,
+        top_left_position_of_grid: np.ndarray,
     ) -> Iterable[Tuple[str, np.array, Tuple[int, int]]]:
         """Determine what images should be drawn to represent the tiles on a grid.
 
@@ -98,31 +100,35 @@ class PrepareForRendering:
         out = []
         rows, columns = np.shape(grid)
         cell_dimensions_copy = np.copy(cell_dimensions)
+        top_left_of_grid_copy = np.copy(top_left_position_of_grid)
+        print("")
         for irow in range(rows):
             for icol in range(columns):
+                top_left_of_cell = MapGridToScreen.top_left_of_cell(
+                    grid_cell=np.array([irow, icol]),
+                    cell_dimensions=cell_dimensions_copy,
+                    top_left_position_of_grid=top_left_of_grid_copy,
+                )
+                print(f"{np.array([irow, icol]) = } {cell_dimensions_copy = } {top_left_of_grid_copy}  -> {top_left_of_cell = }")
                 tile: Iterable[Tuple[str, np.array, Tuple[int, int]]] = \
                     PrepareForRendering.ids_positions_priorities_for_tile(
                         tile_type=grid[irow, icol],
                         cell_dimensions=cell_dimensions_copy,
-                        top_left_of_tile=MapGridToScreen.top_left_of_cell(
-                            grid_cell=np.array([irow, icol]),
-                            cell_dimensions=cell_dimensions_copy,
-                            top_left_position_of_grid=np.copy(top_left_position_of_grid),
-                        )
-                )
+                        top_left_of_tile=top_left_of_cell,
+                    )
+                print(f"{irow = }, {icol = }, {tile = }")
                 out += tile
         return tuple(out)
 
     def order_by_priority(
-        sprites: Iterable[Tuple[str, np.array, Tuple[int, int]]]
+        image_info: Iterable[Tuple[str, np.array, Tuple[int, int]]]
     ) -> Iterable[Tuple[str, np.array, Tuple[int, int]]]:
         """Determine what order images should be drawn in.
 
         Takes an iterable of image ids, positions and priorities.
         Returns the same type of data structure but ordered according to priorities.
         """
-        # TODO: Implement this.
-        return sprites
+        return sorted(image_info, key=lambda x: x[2][0] * 100000000000 + x[2][1])
 
 
 class InteractiveDisplay:
@@ -204,11 +210,10 @@ class InteractiveDisplay:
 
             if running:  # This prevents a segfault from occuring when closing the pygame window.
                 self.screen.fill((0, 0, 0))
+                self.a = PrepareForRendering.collect_images_for_grid(grid=self.tile_grid)
                 self._draw_sprites(
                     PrepareForRendering.order_by_priority(
-                        PrepareForRendering.collect_images_for_grid(
-                            grid=self.tile_grid
-                        )
+                        self.a
                     )
                 )
                 pygame.display.flip()
