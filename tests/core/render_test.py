@@ -6,6 +6,11 @@ from core.render import MapGridToScreen, PrepareForRendering
 from helpers.comparisons import AssertSame
 
 
+PATH_TO_FLOOR_SPRITE = "data/sprites/dummy_floor_sand_32x20.png"
+PATH_TO_WALL_SPRITE = "data/sprites/dummy_wall_terracotta_32x12.png"
+PATH_TO_ROOF_SPRITE = "data/sprites/dummy_roof_blue_32x20.png"
+
+
 class TestMapGridToScreen:
 
     @pytest.mark.parametrize(
@@ -65,6 +70,11 @@ class TestMapGridToScreen:
 
 class TestPrepareForRendering:
 
+    sprite_dimensions = {
+        PATH_TO_WALL_SPRITE: (32, 12),
+        PATH_TO_ROOF_SPRITE: (32, 20),
+    }
+
     @pytest.mark.parametrize(
         "top_left_of_tile, expected_position, expected_priority",
         [
@@ -77,10 +87,34 @@ class TestPrepareForRendering:
     ):
         result = PrepareForRendering.ids_positions_priorities_for_floor_tile(
             cell_dimensions=np.array([32, 20]),
-            top_left_of_tile=top_left_of_tile
+            top_left_of_tile=top_left_of_tile,
         )
         expected = (
-            ('data/sprites/dummy_floor_sand.png', expected_position, expected_priority),
+            (PATH_TO_FLOOR_SPRITE, expected_position, expected_priority),
+        )
+        AssertSame.ids_positions_priorities(result, expected)
+
+    def test_ids_positions_priorities_for_wall_tile_returns_expected_data_at_100_100(self):
+        result = PrepareForRendering.ids_positions_priorities_for_wall_tile(
+            cell_dimensions=np.array([32, 20]),
+            top_left_of_tile=np.array([100, 100]),
+            sprite_dimensions=TestPrepareForRendering.sprite_dimensions,
+        )
+        expected = (
+            (PATH_TO_WALL_SPRITE, np.array([100, 108]), (1, 120)),
+            (PATH_TO_ROOF_SPRITE, np.array([100, 88]), (1, 108)),
+        )
+        AssertSame.ids_positions_priorities(result, expected)
+
+    def test_ids_positions_priorities_for_wall_tile_returns_expected_data_at_132_120(self):
+        result = PrepareForRendering.ids_positions_priorities_for_wall_tile(
+            cell_dimensions=np.array([32, 20]),
+            top_left_of_tile=np.array([132, 120]),
+            sprite_dimensions=TestPrepareForRendering.sprite_dimensions,
+        )
+        expected = (
+            (PATH_TO_WALL_SPRITE, np.array([132, 128]), (1, 140)),
+            (PATH_TO_ROOF_SPRITE, np.array([132, 108]), (1, 128)),
         )
         AssertSame.ids_positions_priorities(result, expected)
 
@@ -89,10 +123,10 @@ class TestPrepareForRendering:
             tile_type=0,
             cell_dimensions=np.array([32, 20]),
             top_left_of_tile=np.array([100, 100]),
+            sprite_dimensions=TestPrepareForRendering.sprite_dimensions,
         )
-        img = 'data/sprites/dummy_floor_sand.png'
         expected = (
-            (img, np.array([100, 100]), (0, 120)),
+            (PATH_TO_FLOOR_SPRITE, np.array([100, 100]), (0, 120)),
             # Note that priority depends on where the bottom of the floor tile starts, not its top left corner.
         )
         AssertSame.ids_positions_priorities(result, expected)
@@ -102,10 +136,10 @@ class TestPrepareForRendering:
             tile_type=0,
             cell_dimensions=np.array([32, 20]),
             top_left_of_tile=np.array([164, 120]),
+            sprite_dimensions=TestPrepareForRendering.sprite_dimensions,
         )
-        img = 'data/sprites/dummy_floor_sand.png'
         expected = (
-            (img, np.array([164, 120]), (0, 140)),
+            (PATH_TO_FLOOR_SPRITE, np.array([164, 120]), (0, 140)),
             # Note that priority depends on where the bottom of the floor tile starts, not its top left corner.
         )
         AssertSame.ids_positions_priorities(result, expected)
@@ -115,8 +149,9 @@ class TestPrepareForRendering:
             grid=np.full((2, 3), 0),
             cell_dimensions=np.array([32, 20]),
             top_left_position_of_grid=np.array([100, 100]),
+            sprite_dimensions=TestPrepareForRendering.sprite_dimensions,
         )
-        img = 'data/sprites/dummy_floor_sand.png'
+        img = PATH_TO_FLOOR_SPRITE
         expected = (
             (img, np.array([100, 100]), (0, 120)),
             (img, np.array([132, 100]), (0, 120)),

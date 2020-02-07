@@ -4,6 +4,11 @@ from typing import Iterable, Dict, Tuple
 import pygame
 
 
+PATH_TO_FLOOR_SPRITE = "data/sprites/dummy_floor_sand_32x20.png"
+PATH_TO_WALL_SPRITE = "data/sprites/dummy_wall_terracotta_32x12.png"
+PATH_TO_ROOF_SPRITE = "data/sprites/dummy_roof_blue_32x20.png"
+
+
 class MapGridToScreen:
     """Functions for determining where an object should be drawn on screen given its tile grid coordinates."""
 
@@ -63,9 +68,46 @@ class PrepareForRendering:
         top_left = np.copy(top_left_of_tile)
         return (
             (
-                "data/sprites/dummy_floor_sand.png",
+                PATH_TO_FLOOR_SPRITE,
                 top_left,
                 (0, top_left[1] + cell_dims[1]),
+            ),
+        )
+
+    def ids_positions_priorities_for_wall_tile(
+        *,
+        cell_dimensions: np.ndarray,
+        top_left_of_tile: np.ndarray,
+        sprite_dimensions: Dict[str, Tuple[int, int]],  # Sprite id -> sprite width and height
+    ) -> Iterable[Tuple[str, np.array, Tuple[int, int]]]:
+        """Make an iterable of tuples describing how to render a block with a wall and a roof tile.
+
+        Note: higher values of second dimensions correspond to being drawn lower on the screen.
+        """
+        # Determine sprite sizes
+        cell_dims = np.copy(cell_dimensions)
+        wall_dimensions = sprite_dimensions[PATH_TO_WALL_SPRITE]
+        roof_dimensions = sprite_dimensions[PATH_TO_ROOF_SPRITE]
+        # Determine where the top left corner of the wall sprite is to be drawn on the screen.
+        wall_top_left = np.copy(top_left_of_tile)
+        wall_top_left[1] += cell_dims[1] - wall_dimensions[1]
+        # Determine where the top left corner of the roof sprites is to be drawn on the screen.
+        roof_top_left = np.copy(wall_top_left)
+        roof_top_left[1] -= roof_dimensions[1]
+        # Determine where the bottom left corners of each sprite are so as to know drawing priority.
+        wall_bottom_left = np.copy(top_left_of_tile)
+        wall_bottom_left[1] += cell_dims[1]
+        roof_bottom_left = np.copy(wall_top_left)
+        return (
+            (
+                PATH_TO_WALL_SPRITE,
+                wall_top_left,
+                (1, wall_bottom_left[1]),
+            ),
+            (
+                PATH_TO_ROOF_SPRITE,
+                roof_top_left,
+                (1, roof_bottom_left[1]),
             ),
         )
 
@@ -74,6 +116,7 @@ class PrepareForRendering:
         tile_type: int,
         cell_dimensions: np.ndarray,
         top_left_of_tile: np.ndarray,
+        sprite_dimensions: Dict[str, Tuple[int, int]],  # Sprite id -> sprite width and height
     ) -> Iterable[Tuple[str, np.array, Tuple[int, int]]]:
         """Determine images, positions and rending priorities for a tile based on its type and location."""
         if tile_type == 0:
@@ -82,7 +125,11 @@ class PrepareForRendering:
                 top_left_of_tile=top_left_of_tile,
             )
         elif tile_type == 1:
-            raise NotImplementedError(f"TODO: implement wall tiles")  # TODO:
+            return PrepareForRendering.ids_positions_priorities_for_wall_tile(
+                cell_dimensions=cell_dimensions,
+                top_left_of_tile=top_left_of_tile,
+                sprite_dimensions=sprite_dimensions,
+            )
         else:
             raise ValueError(f"Unexpected tile type: {tile_type =}")
 
@@ -91,6 +138,7 @@ class PrepareForRendering:
         grid: np.ndarray,
         cell_dimensions: np.ndarray,
         top_left_position_of_grid: np.ndarray,
+        sprite_dimensions: Dict[str, Tuple[int, int]],  # Sprite id -> sprite width and height
     ) -> Iterable[Tuple[str, np.array, Tuple[int, int]]]:
         """Determine what images should be drawn to represent the tiles on a grid.
 
@@ -113,6 +161,7 @@ class PrepareForRendering:
                         tile_type=grid[irow, icol],
                         cell_dimensions=cell_dimensions_copy,
                         top_left_of_tile=top_left_of_cell,
+                        sprite_dimensions=sprite_dimensions,
                     )
                 out += tile
         return tuple(out)
@@ -146,30 +195,42 @@ class InteractiveDisplay:
         """For now we are assuming all images come from PNG files."""
         return {path: self.load_png(path) for path in paths}
 
+    def _collect_images_for_this_grid(self):
+        """Wrapper to avoid repetition between call in init and subsequent calls
+
+        Note: the call in init may not be needed anyway?
+        """
+        return PrepareForRendering.order_by_priority(
+            PrepareForRendering.collect_images_for_grid(
+                grid=self.tile_grid,
+                cell_dimensions=self.cell_dimensions,
+                top_left_position_of_grid=self.top_left_position_of_grid,
+                sprite_dimensions=self.sprite_dimensions,
+            )
+        )
+
     def __init__(
         self,
         *,
         tile_grid: np.ndarray,
         cell_dimensions: np.ndarray,
         top_left_position_of_grid: np.ndarray,
+        sprite_dimensions: Dict[str, Tuple[int, int]],  # Sprite id -> sprite width and height
     ) -> None:
         self.tile_grid = np.copy(tile_grid)
         self.cell_dimensions = np.copy(cell_dimensions)
         self.top_left_position_of_grid = np.copy(top_left_position_of_grid)
-        self.sprite_info = PrepareForRendering.collect_images_for_grid(
-            grid=self.tile_grid,
-            cell_dimensions=self.cell_dimensions,
-            top_left_position_of_grid=self.top_left_position_of_grid,
-        )
+        self.sprite_dimensions = sprite_dimensions
+
+        self.ids_positions_priorities = self._collect_images_for_this_grid()
         self.window_scale = 20
         self.window_width = 32 * self.window_scale
         self.window_height = 20 * self.window_scale
 
         self.image_paths = (
-            "data/sprites/dummy_floor_blue.png",
-            "data/sprites/dummy_floor_sand.png",
-            "data/sprites/dummy_roof_blue.png",
-            "data/sprites/dummy_wall_terracotta.png"
+            PATH_TO_FLOOR_SPRITE,
+            PATH_TO_WALL_SPRITE,
+            PATH_TO_ROOF_SPRITE,
         )
 
         # Initialise pygame
@@ -204,14 +265,6 @@ class InteractiveDisplay:
 
             if running:  # This if statement prevents a segfault from occuring when closing the pygame window.
                 self.screen.fill((0, 0, 0))
-                self.ids_positions_priorities = PrepareForRendering.collect_images_for_grid(
-                    grid=self.tile_grid,
-                    cell_dimensions=self.cell_dimensions,
-                    top_left_position_of_grid=self.top_left_position_of_grid,
-                )
-                self._draw_sprites(
-                    PrepareForRendering.order_by_priority(
-                        self.ids_positions_priorities
-                    )
-                )
+                self.ids_positions_priorities = self._collect_images_for_this_grid()
+                self._draw_sprites(self.ids_positions_priorities)
                 pygame.display.flip()
