@@ -1,22 +1,9 @@
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
-from typing import Iterable, Tuple
 
 from core.render import MapGridToScreen, PrepareForRendering
-
-
-def compare_ids_positions_priorities(
-    first: Iterable[Tuple[str, np.array, Tuple[int, int]]],
-    second: Iterable[Tuple[str, np.array, Tuple[int, int]]],
-) -> None:
-    assert len(first) == len(second)
-    for i in range(len(first)):
-        assert len(first[i]) == 3
-        assert len(second[i]) == 3
-        assert first[i][0] == second[i][0]
-        assert_array_equal(first[i][1], second[i][1])
-        assert first[i][2] == second[i][2]
+from helpers.comparisons import AssertSame
 
 
 class TestMapGridToScreen:
@@ -95,7 +82,7 @@ class TestPrepareForRendering:
         expected = (
             ('data/sprites/dummy_floor_sand.png', expected_position, expected_priority),
         )
-        compare_ids_positions_priorities(result, expected)
+        AssertSame.ids_positions_priorities(result, expected)
 
     def test_ids_positions_priorities_for_tile_in_top_left_corner(self):
         result = PrepareForRendering.ids_positions_priorities_for_tile(
@@ -108,7 +95,7 @@ class TestPrepareForRendering:
             (img, np.array([100, 100]), (0, 120)),
             # Note that priority depends on where the bottom of the floor tile starts, not its top left corner.
         )
-        compare_ids_positions_priorities(result, expected)
+        AssertSame.ids_positions_priorities(result, expected)
 
     def test_ids_positions_priorities_for_tile_in_row_2_column_3(self):
         result = PrepareForRendering.ids_positions_priorities_for_tile(
@@ -121,7 +108,7 @@ class TestPrepareForRendering:
             (img, np.array([164, 120]), (0, 140)),
             # Note that priority depends on where the bottom of the floor tile starts, not its top left corner.
         )
-        compare_ids_positions_priorities(result, expected)
+        AssertSame.ids_positions_priorities(result, expected)
 
     def test_collect_images_for_grid_of_2x3_floor_tiles(self):
         result = PrepareForRendering.collect_images_for_grid(
@@ -138,7 +125,7 @@ class TestPrepareForRendering:
             (img, np.array([132, 120]), (0, 140)),
             (img, np.array([164, 120]), (0, 140)),
         )
-        compare_ids_positions_priorities(result, expected)
+        AssertSame.ids_positions_priorities(result, expected)
 
     def test_order_by_priority_returns_correct_order_based_on_priorites(self):
         unsorted_images_positions_priorities = (
@@ -171,4 +158,4 @@ class TestPrepareForRendering:
             ("img2", np.array([0, 15]), (2, 15)),
         )
         result = PrepareForRendering.order_by_priority(unsorted_images_positions_priorities)
-        compare_ids_positions_priorities(result, expected)
+        AssertSame.ids_positions_priorities(result, expected)

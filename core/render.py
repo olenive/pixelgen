@@ -101,7 +101,6 @@ class PrepareForRendering:
         rows, columns = np.shape(grid)
         cell_dimensions_copy = np.copy(cell_dimensions)
         top_left_of_grid_copy = np.copy(top_left_position_of_grid)
-        print("")
         for irow in range(rows):
             for icol in range(columns):
                 top_left_of_cell = MapGridToScreen.top_left_of_cell(
@@ -109,14 +108,12 @@ class PrepareForRendering:
                     cell_dimensions=cell_dimensions_copy,
                     top_left_position_of_grid=top_left_of_grid_copy,
                 )
-                print(f"{np.array([irow, icol]) = } {cell_dimensions_copy = } {top_left_of_grid_copy}  -> {top_left_of_cell = }")
                 tile: Iterable[Tuple[str, np.array, Tuple[int, int]]] = \
                     PrepareForRendering.ids_positions_priorities_for_tile(
                         tile_type=grid[irow, icol],
                         cell_dimensions=cell_dimensions_copy,
                         top_left_of_tile=top_left_of_cell,
                     )
-                print(f"{irow = }, {icol = }, {tile = }")
                 out += tile
         return tuple(out)
 
@@ -180,17 +177,14 @@ class InteractiveDisplay:
         self.screen = pygame.display.set_mode((self.window_width, self.window_height))
         pygame.display.set_caption("Interactive NEAT-python pixel image generation.")
 
-        # Load images (need to happen after a pygame display is initialised)
+        # Load images (this needs to happen after a pygame display is initialised)
         self.images: Dict[str, pygame.Surface] = self.images_from_paths(self.image_paths)
 
     def _draw_sprites(
         self,
         sprites_info: Iterable[Tuple[str, np.array, Tuple[int, int]]],
     ) -> None:
-        print(f"{sprites_info = }, {type(sprites_info) = }")
-        # import pdb; pdb.set_trace()
         for (image_id, position, _) in sprites_info:
-            print(f"{position = }")
             self.screen.blit(self.images[image_id], position)
 
     def run(self, maximum_frames=None):
@@ -208,12 +202,16 @@ class InteractiveDisplay:
                     running = False
                     break
 
-            if running:  # This prevents a segfault from occuring when closing the pygame window.
+            if running:  # This if statement prevents a segfault from occuring when closing the pygame window.
                 self.screen.fill((0, 0, 0))
-                self.a = PrepareForRendering.collect_images_for_grid(grid=self.tile_grid)
+                self.ids_positions_priorities = PrepareForRendering.collect_images_for_grid(
+                    grid=self.tile_grid,
+                    cell_dimensions=self.cell_dimensions,
+                    top_left_position_of_grid=self.top_left_position_of_grid,
+                )
                 self._draw_sprites(
                     PrepareForRendering.order_by_priority(
-                        self.a
+                        self.ids_positions_priorities
                     )
                 )
                 pygame.display.flip()

@@ -2,6 +2,7 @@
 
 import numpy as np
 from core.render import InteractiveDisplay
+from helpers.comparisons import AssertSame
 
 
 PATH_TO_FLOOR_SPRITE = "data/sprites/dummy_floor_sand.png"
@@ -20,15 +21,13 @@ class TestDrawTiles:
         sprite_id = PATH_TO_FLOOR_SPRITE
         expected = (
             # First row
-            (sprite_id, np.array([100, 100]), (0, 100)),
-            (sprite_id, np.array([132, 100]), (0, 100)),
-            (sprite_id, np.array([164, 100]), (0, 100)),
+            (sprite_id, np.array([100, 100]), (0, 120)),
+            (sprite_id, np.array([132, 100]), (0, 120)),
+            (sprite_id, np.array([164, 100]), (0, 120)),
             # Second row
-            (sprite_id, np.array([100, 120]), (0, 120)),
-            (sprite_id, np.array([132, 120]), (0, 120)),
-            (sprite_id, np.array([164, 120]), (0, 120)),
+            (sprite_id, np.array([100, 120]), (0, 140)),
+            (sprite_id, np.array([132, 120]), (0, 140)),
+            (sprite_id, np.array([164, 120]), (0, 140)),
         )
-        # import pdb; pdb.set_trace()
-        import pdb; pdb.set_trace()
-        interactive.run(maximum_frames=60)  # Display for two seconds.
-        assert interactive == expected
+        interactive.run(maximum_frames=30)  # Display for two seconds.
+        AssertSame.ids_positions_priorities(interactive.ids_positions_priorities, expected)
