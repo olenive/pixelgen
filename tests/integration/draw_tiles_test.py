@@ -1,9 +1,8 @@
 """Tests that open a window and draw a map of tiles on the screen."""
 
 import numpy as np
-import pygame
 
-from core.render import ExampleDisplay
+from core.render import ExampleDisplay, MultiTilesetDisplay
 from helpers.comparisons import AssertSame
 from helpers.image import ImageIO, ImageConverter
 
@@ -118,7 +117,23 @@ class TestDrawTiles:
         )
         example_display.run(maximum_frames=30)
 
-    def test_draw_metagrid(self):
-        """Draw multiple examples of tilesets on a single screen."""
-        pass
+    def test_draw_buttons_containing_examples_of_different_tile_sets(self):
+        """Draw multiple examples of tilesets on a single screen.
 
+        In this case they are actually the same tile set...
+        """
+        one_wall = np.array([
+            [0, 0, 0],
+            [0, 1, 0],
+            [0, 0, 0],
+        ])
+        cell_size = (32, 20)
+        display = MultiTilesetDisplay(
+            tile_grid=one_wall,
+            button_grid_size=(5, 3),
+            cell_dimensions=np.array(cell_size),
+            button_dimensions=(cell_size[0] * 3 + 20, cell_size[1] * 3 + 20),
+            top_left_position_of_grid=np.array([100, 100]),
+            sprite_dimensions=TestDrawTiles.sprite_dimensions,
+        )
+        display.draw_buttons(maximum_frames=30)  # Display for maximum_frames at 30 frames per second.

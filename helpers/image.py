@@ -1,5 +1,6 @@
 import numpy as np
-from typing import Iterable, Tuple
+import pygame
+from typing import Iterable, Tuple, Dict
 from PIL import Image
 
 
@@ -8,6 +9,20 @@ class ImageIO:
     def rgba_png_to_array(path_to_png: str) -> np.ndarray:
         rgba_image = Image.open(path_to_png)
         return np.asarray(rgba_image, dtype="int32")
+
+    def load_png(path: str) -> pygame.Surface:
+        """Load PNG data from given file path and carry out conversions required by pygame.
+
+        Note: the conversions may only be possible after a pygame.display object is initialised.
+        """
+        surface = pygame.image.load(path)
+        converted = surface.convert()
+        with_alphas = converted.convert_alpha()
+        return with_alphas
+
+    def images_from_paths(paths: Iterable[str]) -> Dict[str, pygame.Surface]:
+        """For now we are assuming all images come from PNG files."""
+        return {path: ImageIO.load_png(path) for path in paths}
 
 
 class ImageConverter:

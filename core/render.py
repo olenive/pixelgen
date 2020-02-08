@@ -1,7 +1,8 @@
 import numpy as np
 from typing import Iterable, Dict, Tuple
-
 import pygame
+
+from helpers.image import ImageIO
 
 
 PATH_TO_FLOOR_SPRITE = "data/sprites/dummy_floor_sand_32x20.png"
@@ -184,17 +185,6 @@ class ExampleDisplay:
     "cannot convert without pygame.display initialized." error is raised by pygame.
     """
 
-    def load_png(self, path: str) -> pygame.Surface:
-        """Load PNG data from given file path and carry out conversions required by pygame."""
-        surface = pygame.image.load(path)
-        converted = surface.convert()
-        with_alphas = converted.convert_alpha()
-        return with_alphas
-
-    def images_from_paths(self, paths: Iterable[str]) -> Dict[str, pygame.Surface]:
-        """For now we are assuming all images come from PNG files."""
-        return {path: self.load_png(path) for path in paths}
-
     def _collect_images_for_this_grid(self):
         """Wrapper to avoid repetition between call in init and subsequent calls
 
@@ -222,7 +212,7 @@ class ExampleDisplay:
         self.top_left_position_of_grid = np.copy(top_left_position_of_grid)
         self.sprite_dimensions = sprite_dimensions
 
-        self.ids_positions_priorities = self._collect_images_for_this_grid()
+        # self.ids_positions_priorities = self._collect_images_for_this_grid()
         self.window_scale = 40
         self.window_width = 32 * self.window_scale
         self.window_height = 20 * self.window_scale
@@ -239,7 +229,7 @@ class ExampleDisplay:
         pygame.display.set_caption("Interactive NEAT-python pixel image generation.")
 
         # Load images (this needs to happen after a pygame display is initialised)
-        self.images: Dict[str, pygame.Surface] = self.images_from_paths(self.image_paths)
+        self.images: Dict[str, pygame.Surface] = ImageIO.images_from_paths(self.image_paths)
 
     def _draw_sprites(
         self,
@@ -269,6 +259,95 @@ class ExampleDisplay:
                 self._draw_sprites(self.ids_positions_priorities)
                 pygame.display.flip()
 
+
 class MultiTilesetDisplay:
     """Show more than one tile set in a single window."""
-    pass
+
+    def __init__(
+        self,
+        *,
+        tile_grid: np.ndarray,
+        button_grid_size: np.ndarray,
+        cell_dimensions: np.ndarray,
+        button_dimensions: np.ndarray,
+        top_left_position_of_grid: np.ndarray,
+        sprite_dimensions: Dict[str, Tuple[int, int]],  # Sprite id -> sprite width and height
+    ) -> None:
+        self.tile_grid = np.copy(tile_grid)
+        self.button_grid_size = np.copy(button_grid_size)
+        self.cell_dimensions = np.copy(cell_dimensions)
+        self.button_dimensions = np.copy(button_dimensions)
+        self.top_left_position_of_grid = np.copy(top_left_position_of_grid)
+        self.sprite_dimensions = sprite_dimensions
+
+        # self.ids_positions_priorities = self._collect_images_for_this_grid()
+        self.window_scale = 40
+        self.window_width = 32 * self.window_scale
+        self.window_height = 20 * self.window_scale
+
+        self.image_paths = (
+            PATH_TO_FLOOR_SPRITE,
+            PATH_TO_WALL_SPRITE,
+            PATH_TO_ROOF_SPRITE,
+        )
+
+        # Initialise pygame
+        pygame.init()
+        self.screen = pygame.display.set_mode((self.window_width, self.window_height))
+        pygame.display.set_caption("Interactive NEAT-python pixel image generation.")
+
+        # Load images (this needs to happen after a pygame display is initialised)
+        self.images: Dict[str, pygame.Surface] = ImageIO.images_from_paths(self.image_paths)
+
+    def _draw_sprites(
+        self,
+        sprites_info: Iterable[Tuple[str, np.array, Tuple[int, int]]],
+    ) -> None:
+        for (image_id, position, _) in sprites_info:
+            self.screen.blit(self.images[image_id], position)
+
+    def _collect_images_for_buttons(
+        self,
+        button_grid_size: Tuple[int, int],
+    ) -> Tuple[Iterable[Iterable[Tuple[str, np.array, Tuple[int, int]]]], Iterable[Tuple[int, int]]]:
+        images_for_all_buttons = []
+        top_left_positions_of_buttons = []
+        for irow in range(button_grid_size[0]):
+            for icol in range(button_grid_size[1]):
+                top_left_position_of_button = MapGridToScreen.top_left_of_cell(
+                    grid_cell=(irow, icol),
+                    cell_dimensions=self.button_dimensions,
+                    top_left_position_of_grid=self.top_left_position_of_grid,
+                )
+                top_left_positions_of_buttons.append(top_left_position_of_button)
+                images_for_all_buttons += PrepareForRendering.collect_images_for_grid(
+                    grid=self.tile_grid,
+                    cell_dimensions=self.cell_dimensions,
+                    top_left_position_of_grid=top_left_position_of_button,
+                    sprite_dimensions=self.sprite_dimensions,
+                )
+        return PrepareForRendering.order_by_priority(images_for_all_buttons), top_left_positions_of_buttons
+
+    def draw_buttons(self, maximum_frames=None):
+        """Draw a grid of buttons containing multiple tile sets."""
+        running = True
+        frame_counter = 0
+        while running:
+            if maximum_frames is not None:
+                frame_counter += 1
+                if frame_counter >= maximum_frames:
+                    running = False
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    running = False
+                    break
+
+            if running:  # This if statement prevents a segfault from occuring when closing the pygame window.
+                self.screen.fill((0, 0, 0))
+                self.button_images, self.button_top_left_positions = self._collect_images_for_buttons(
+                    button_grid_size=self.button_grid_size
+                )
+                self._draw_sprites(self.button_images)
+                pygame.display.flip()
