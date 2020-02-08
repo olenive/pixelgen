@@ -177,7 +177,7 @@ class PrepareForRendering:
         return sorted(image_info, key=lambda x: x[2][0] * 100000000000 + x[2][1])
 
 
-class InteractiveDisplay:
+class ExampleDisplay:
     """Create a window and display images.
 
     NOTE: Unfortunately the PNG images need to be loaded after the window is initialised otherwise a
@@ -223,7 +223,7 @@ class InteractiveDisplay:
         self.sprite_dimensions = sprite_dimensions
 
         self.ids_positions_priorities = self._collect_images_for_this_grid()
-        self.window_scale = 20
+        self.window_scale = 40
         self.window_width = 32 * self.window_scale
         self.window_height = 20 * self.window_scale
 
@@ -268,3 +268,7 @@ class InteractiveDisplay:
                 self.ids_positions_priorities = self._collect_images_for_this_grid()
                 self._draw_sprites(self.ids_positions_priorities)
                 pygame.display.flip()
+
+class MultiTilesetDisplay:
+    """Show more than one tile set in a single window."""
+    pass
