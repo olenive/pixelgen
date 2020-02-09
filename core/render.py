@@ -260,6 +260,28 @@ class ExampleDisplay:
                 pygame.display.flip()
 
 
+class ToggleableButton:
+    """Rectangular button containing an image that can be toggled on or off.
+
+    Rather than holding the image surface directly this object hold instructions for which image to draw in the form of
+    an iterable of tuples of image ids, image positions and draw priorites.
+    """
+
+    def __init__(
+        self,
+        *,
+        top_left: Tuple[int, int],
+        dimensions: Tuple[int, int],
+        image_info: Iterable[Tuple[str, np.array, Tuple[int, int]]],
+        initial_state: bool = False
+    ):
+        self.top_left = top_left
+        self.dimensions = dimensions
+        self.state = initial_state
+        self.image_info = image_info
+        self.rect = pygame.Rect(top_left, dimensions)
+
+
 class MultiTilesetDisplay:
     """Show more than one tile set in a single window."""
 
@@ -303,15 +325,20 @@ class MultiTilesetDisplay:
         self,
         sprites_info: Iterable[Tuple[str, np.array, Tuple[int, int]]],
     ) -> None:
-        for (image_id, position, _) in sprites_info:
+        """Determine order that sprites should be drawn in and blit them onto the screen.
+
+        Note: ordering is the last step before drawing so that sprites combined from different
+        sources or generated be different processes can be ordered correctly relative to eachother.
+        """
+        ordered_sprites_info = PrepareForRendering.order_by_priority(sprites_info)
+        for (image_id, position, _) in ordered_sprites_info:
             self.screen.blit(self.images[image_id], position)
 
-    def _collect_images_for_buttons(
-        self,
-        button_grid_size: Tuple[int, int],
-    ) -> Tuple[Iterable[Iterable[Tuple[str, np.array, Tuple[int, int]]]], Iterable[Tuple[int, int]]]:
-        images_for_all_buttons = []
-        top_left_positions_of_buttons = []
+    def _make_buttons(
+        self, button_grid_size: Tuple[int, int], button_dimensions: Tuple[int, int]
+    ) -> Iterable[ToggleableButton]:
+        """Create button objects that can the be used to draw buttons on the screen and detect clicks."""
+        buttons = []
         for irow in range(button_grid_size[0]):
             for icol in range(button_grid_size[1]):
                 top_left_position_of_button = MapGridToScreen.top_left_of_cell(
@@ -319,14 +346,30 @@ class MultiTilesetDisplay:
                     cell_dimensions=self.button_dimensions,
                     top_left_position_of_grid=self.top_left_position_of_grid,
                 )
-                top_left_positions_of_buttons.append(top_left_position_of_button)
-                images_for_all_buttons += PrepareForRendering.collect_images_for_grid(
-                    grid=self.tile_grid,
-                    cell_dimensions=self.cell_dimensions,
-                    top_left_position_of_grid=top_left_position_of_button,
-                    sprite_dimensions=self.sprite_dimensions,
+                button_images_info: Iterable[str, np.ndarray, Tuple[int, int]] = \
+                    PrepareForRendering.collect_images_for_grid(
+                        grid=self.tile_grid,
+                        cell_dimensions=self.cell_dimensions,
+                        top_left_position_of_grid=top_left_position_of_button,
+                        sprite_dimensions=self.sprite_dimensions,
+                    )
+                buttons.append(
+                    ToggleableButton(
+                        top_left=top_left_position_of_button,
+                        dimensions=self.button_dimensions,
+                        image_info=button_images_info,
+                    )
                 )
-        return PrepareForRendering.order_by_priority(images_for_all_buttons), top_left_positions_of_buttons
+        return buttons
+
+    def _collect_button_image_info(
+        self, buttons: Iterable[ToggleableButton]
+    ) -> Iterable[Tuple[str, np.array, Tuple[int, int]]]:
+        """Gather image info from multiple buttons into a single tuple of image ids, positions and priorities."""
+        images_info = []
+        for button in buttons:
+            images_info += button.image_info
+        return tuple(images_info)
 
     def draw_buttons(self, maximum_frames=None):
         """Draw a grid of buttons containing multiple tile sets."""
@@ -346,8 +389,10 @@ class MultiTilesetDisplay:
 
             if running:  # This if statement prevents a segfault from occuring when closing the pygame window.
                 self.screen.fill((0, 0, 0))
-                self.button_images, self.button_top_left_positions = self._collect_images_for_buttons(
-                    button_grid_size=self.button_grid_size
+                buttons = self._make_buttons(
+                    button_grid_size=self.button_grid_size,
+                    button_dimensions=self.button_dimensions,
                 )
-                self._draw_sprites(self.button_images)
+                button_images = self._collect_button_image_info(buttons)
+                self._draw_sprites(button_images)
                 pygame.display.flip()
