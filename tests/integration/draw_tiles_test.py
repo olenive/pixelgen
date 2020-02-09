@@ -135,5 +135,6 @@ class TestDrawTiles:
             button_dimensions=(cell_size[0] * 3 + 20, cell_size[1] * 3 + 20),
             top_left_position_of_grid=np.array([100, 100]),
             sprite_dimensions=TestDrawTiles.sprite_dimensions,
+            button_inner_boarder=np.array([10, 10])
         )
-        display.draw_buttons(maximum_frames=30)  # Display for maximum_frames at 30 frames per second.
+        display.draw_buttons(maximum_frames=9930)  # Display for maximum_frames at 30 frames per second.

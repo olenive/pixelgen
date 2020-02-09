@@ -178,6 +178,24 @@ class PrepareForRendering:
         return sorted(image_info, key=lambda x: x[2][0] * 100000000000 + x[2][1])
 
 
+class Render:
+
+    def sprites(
+        *,
+        screen: pygame.surface.Surface,
+        images: Iterable[pygame.surface.Surface],
+        sprites_info: Iterable[Tuple[str, np.array, Tuple[int, int]]],
+    ) -> None:
+        """Determine order that sprites should be drawn in and blit them onto the screen.
+
+        Note: ordering is the last step before drawing so that sprites combined from different
+        sources or generated be different processes can be ordered correctly relative to eachother.
+        """
+        ordered_sprites_info = PrepareForRendering.order_by_priority(sprites_info)
+        for (image_id, position, _) in ordered_sprites_info:
+            screen.blit(images[image_id], position)
+
+
 class ExampleDisplay:
     """Create a window and display images.
 
@@ -212,7 +230,6 @@ class ExampleDisplay:
         self.top_left_position_of_grid = np.copy(top_left_position_of_grid)
         self.sprite_dimensions = sprite_dimensions
 
-        # self.ids_positions_priorities = self._collect_images_for_this_grid()
         self.window_scale = 40
         self.window_width = 32 * self.window_scale
         self.window_height = 20 * self.window_scale
@@ -230,13 +247,6 @@ class ExampleDisplay:
 
         # Load images (this needs to happen after a pygame display is initialised)
         self.images: Dict[str, pygame.Surface] = ImageIO.images_from_paths(self.image_paths)
-
-    def _draw_sprites(
-        self,
-        sprites_info: Iterable[Tuple[str, np.array, Tuple[int, int]]],
-    ) -> None:
-        for (image_id, position, _) in sprites_info:
-            self.screen.blit(self.images[image_id], position)
 
     def run(self, maximum_frames=None):
         running = True
@@ -256,7 +266,11 @@ class ExampleDisplay:
             if running:  # This if statement prevents a segfault from occuring when closing the pygame window.
                 self.screen.fill((0, 0, 0))
                 self.ids_positions_priorities = self._collect_images_for_this_grid()
-                self._draw_sprites(self.ids_positions_priorities)
+                Render.sprites(
+                    screen=self.screen,
+                    images=self.images,
+                    sprites_info=self.ids_positions_priorities,
+                )
                 pygame.display.flip()
 
 
@@ -294,6 +308,7 @@ class MultiTilesetDisplay:
         button_dimensions: np.ndarray,
         top_left_position_of_grid: np.ndarray,
         sprite_dimensions: Dict[str, Tuple[int, int]],  # Sprite id -> sprite width and height
+        button_inner_boarder: np.ndarray,  # Used to create space between button boarder and the image in the button.
     ) -> None:
         self.tile_grid = np.copy(tile_grid)
         self.button_grid_size = np.copy(button_grid_size)
@@ -301,8 +316,8 @@ class MultiTilesetDisplay:
         self.button_dimensions = np.copy(button_dimensions)
         self.top_left_position_of_grid = np.copy(top_left_position_of_grid)
         self.sprite_dimensions = sprite_dimensions
+        self.button_inner_boarder = np.copy(button_inner_boarder)
 
-        # self.ids_positions_priorities = self._collect_images_for_this_grid()
         self.window_scale = 40
         self.window_width = 32 * self.window_scale
         self.window_height = 20 * self.window_scale
@@ -321,19 +336,6 @@ class MultiTilesetDisplay:
         # Load images (this needs to happen after a pygame display is initialised)
         self.images: Dict[str, pygame.Surface] = ImageIO.images_from_paths(self.image_paths)
 
-    def _draw_sprites(
-        self,
-        sprites_info: Iterable[Tuple[str, np.array, Tuple[int, int]]],
-    ) -> None:
-        """Determine order that sprites should be drawn in and blit them onto the screen.
-
-        Note: ordering is the last step before drawing so that sprites combined from different
-        sources or generated be different processes can be ordered correctly relative to eachother.
-        """
-        ordered_sprites_info = PrepareForRendering.order_by_priority(sprites_info)
-        for (image_id, position, _) in ordered_sprites_info:
-            self.screen.blit(self.images[image_id], position)
-
     def _make_buttons(
         self, button_grid_size: Tuple[int, int], button_dimensions: Tuple[int, int]
     ) -> Iterable[ToggleableButton]:
@@ -350,7 +352,7 @@ class MultiTilesetDisplay:
                     PrepareForRendering.collect_images_for_grid(
                         grid=self.tile_grid,
                         cell_dimensions=self.cell_dimensions,
-                        top_left_position_of_grid=top_left_position_of_button,
+                        top_left_position_of_grid=top_left_position_of_button + self.button_inner_boarder, 
                         sprite_dimensions=self.sprite_dimensions,
                     )
                 buttons.append(
@@ -371,8 +373,18 @@ class MultiTilesetDisplay:
             images_info += button.image_info
         return tuple(images_info)
 
+    def _draw_button_boarders(self, screen, buttons):
+        for button in buttons:
+            if button.state:
+                pygame.draw.rect(screen, [190, 190, 190, 200], button.rect, width=2)
+
     def draw_buttons(self, maximum_frames=None):
         """Draw a grid of buttons containing multiple tile sets."""
+        buttons = self._make_buttons(
+            button_grid_size=self.button_grid_size,
+            button_dimensions=self.button_dimensions,
+        )
+
         running = True
         frame_counter = 0
         while running:
@@ -382,17 +394,25 @@ class MultiTilesetDisplay:
                     running = False
 
             for event in pygame.event.get():
+                # Exit the pygame window without causing errors.
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     running = False
                     break
 
+                # Toggle buttons in response to click.
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    for button in buttons:
+                        if button.rect.collidepoint(pygame.mouse.get_pos()):
+                            button.state = not button.state
+
             if running:  # This if statement prevents a segfault from occuring when closing the pygame window.
                 self.screen.fill((0, 0, 0))
-                buttons = self._make_buttons(
-                    button_grid_size=self.button_grid_size,
-                    button_dimensions=self.button_dimensions,
+                button_images_info = self._collect_button_image_info(buttons)
+                Render.sprites(
+                    screen=self.screen,
+                    images=self.images,
+                    sprites_info=button_images_info,
                 )
-                button_images = self._collect_button_image_info(buttons)
-                self._draw_sprites(button_images)
+                self._draw_button_boarders(self.screen, buttons)
                 pygame.display.flip()
