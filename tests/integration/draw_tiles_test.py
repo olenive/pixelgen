@@ -15,8 +15,8 @@ PATH_TO_ROOF_SPRITE = "data/sprites/dummy_roof_blue_32x20.png"
 class TestDrawTiles:
 
     sprite_dimensions = {
-        PATH_TO_WALL_SPRITE: (32, 12),
-        PATH_TO_ROOF_SPRITE: (32, 20),
+        "wall sprite": (32, 12),
+        "roof sprite": (32, 20),
     }
 
     def test_draw_floor_2x3(self):
@@ -27,7 +27,7 @@ class TestDrawTiles:
             top_left_position_of_grid=np.array([100, 100]),
             sprite_dimensions=TestDrawTiles.sprite_dimensions,
         )
-        sprite_id = PATH_TO_FLOOR_SPRITE
+        sprite_id = "floor sprite"
         expected = (
             # First row
             (sprite_id, np.array([100, 100]), (0, 120)),
@@ -53,9 +53,9 @@ class TestDrawTiles:
             top_left_position_of_grid=np.array([100, 100]),
             sprite_dimensions=TestDrawTiles.sprite_dimensions,
         )
-        floor = PATH_TO_FLOOR_SPRITE
-        wall = PATH_TO_WALL_SPRITE
-        roof = PATH_TO_ROOF_SPRITE
+        floor = "floor sprite"
+        wall = "wall sprite"
+        roof = "roof sprite"
         expected = (
             # First row
             (floor, np.array([100, 100]), (0, 120)),
@@ -83,9 +83,9 @@ class TestDrawTiles:
             top_left_position_of_grid=np.array([100, 100]),
             sprite_dimensions=TestDrawTiles.sprite_dimensions,
         )
-        floor = PATH_TO_FLOOR_SPRITE
-        wall = PATH_TO_WALL_SPRITE
-        roof = PATH_TO_ROOF_SPRITE
+        floor = "floor sprite"
+        wall = "wall sprite"
+        roof = "roof sprite"
         expected = (
             # First row
             (floor, np.array([100, 100]), (0, 120)),

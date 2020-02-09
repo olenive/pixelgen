@@ -71,8 +71,8 @@ class TestMapGridToScreen:
 class TestPrepareForRendering:
 
     sprite_dimensions = {
-        PATH_TO_WALL_SPRITE: (32, 12),
-        PATH_TO_ROOF_SPRITE: (32, 20),
+        "wall sprite": (32, 12),
+        "roof sprite": (32, 20),
     }
 
     @pytest.mark.parametrize(
@@ -90,7 +90,7 @@ class TestPrepareForRendering:
             top_left_of_tile=top_left_of_tile,
         )
         expected = (
-            (PATH_TO_FLOOR_SPRITE, expected_position, expected_priority),
+            ("floor sprite", expected_position, expected_priority),
         )
         AssertSame.ids_positions_priorities(result, expected)
 
@@ -101,8 +101,8 @@ class TestPrepareForRendering:
             sprite_dimensions=TestPrepareForRendering.sprite_dimensions,
         )
         expected = (
-            (PATH_TO_WALL_SPRITE, np.array([100, 108]), (1, 120)),
-            (PATH_TO_ROOF_SPRITE, np.array([100, 88]), (1, 108)),
+            ("wall sprite", np.array([100, 108]), (1, 120)),
+            ("roof sprite", np.array([100, 88]), (1, 108)),
         )
         AssertSame.ids_positions_priorities(result, expected)
 
@@ -113,8 +113,8 @@ class TestPrepareForRendering:
             sprite_dimensions=TestPrepareForRendering.sprite_dimensions,
         )
         expected = (
-            (PATH_TO_WALL_SPRITE, np.array([132, 128]), (1, 140)),
-            (PATH_TO_ROOF_SPRITE, np.array([132, 108]), (1, 128)),
+            ("wall sprite", np.array([132, 128]), (1, 140)),
+            ("roof sprite", np.array([132, 108]), (1, 128)),
         )
         AssertSame.ids_positions_priorities(result, expected)
 
@@ -126,7 +126,7 @@ class TestPrepareForRendering:
             sprite_dimensions=TestPrepareForRendering.sprite_dimensions,
         )
         expected = (
-            (PATH_TO_FLOOR_SPRITE, np.array([100, 100]), (0, 120)),
+            ("floor sprite", np.array([100, 100]), (0, 120)),
             # Note that priority depends on where the bottom of the floor tile starts, not its top left corner.
         )
         AssertSame.ids_positions_priorities(result, expected)
@@ -139,7 +139,7 @@ class TestPrepareForRendering:
             sprite_dimensions=TestPrepareForRendering.sprite_dimensions,
         )
         expected = (
-            (PATH_TO_FLOOR_SPRITE, np.array([164, 120]), (0, 140)),
+            ("floor sprite", np.array([164, 120]), (0, 140)),
             # Note that priority depends on where the bottom of the floor tile starts, not its top left corner.
         )
         AssertSame.ids_positions_priorities(result, expected)
@@ -151,7 +151,7 @@ class TestPrepareForRendering:
             top_left_position_of_grid=np.array([100, 100]),
             sprite_dimensions=TestPrepareForRendering.sprite_dimensions,
         )
-        img = PATH_TO_FLOOR_SPRITE
+        img = "floor sprite"
         expected = (
             (img, np.array([100, 100]), (0, 120)),
             (img, np.array([132, 100]), (0, 120)),

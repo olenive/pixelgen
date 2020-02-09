@@ -13,10 +13,11 @@ PATH_TO_ROOF_SPRITE = os.path.join("data", "sprites", "dummy_roof_blue_32x20.png
 
 class InteractiveEvolution:
 
-    sprite_dimensions = {
-        PATH_TO_WALL_SPRITE: (32, 12),
-        PATH_TO_ROOF_SPRITE: (32, 20),
-    }
+    def __init__(self):
+        self.sprite_dimensions = {
+            PATH_TO_WALL_SPRITE: (32, 12),
+            PATH_TO_ROOF_SPRITE: (32, 20),
+        }
 
     def _make_config(self):
         local_dir = os.path.dirname(__file__)
@@ -43,7 +44,7 @@ class InteractiveEvolution:
             cell_dimensions=np.array(cell_size),
             button_dimensions=(cell_size[0] * 3 + 20, cell_size[1] * 3 + 20),
             top_left_position_of_grid=np.array([100, 100]),
-            sprite_dimensions=InteractiveEvolution.sprite_dimensions,
+            sprite_dimensions=self.sprite_dimensions,
             button_inner_boarder=np.array([10, 10])
         )
         display.draw_buttons(maximum_frames=None)

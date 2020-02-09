@@ -1,13 +1,14 @@
+import os
 import numpy as np
-from typing import Iterable, Dict, Tuple
+from typing import Iterable, Dict, Tuple, Callable
 import pygame
 
 from helpers.image import ImageIO
 
 
-PATH_TO_FLOOR_SPRITE = "data/sprites/dummy_floor_sand_32x20.png"
-PATH_TO_WALL_SPRITE = "data/sprites/dummy_wall_terracotta_32x12.png"
-PATH_TO_ROOF_SPRITE = "data/sprites/dummy_roof_blue_32x20.png"
+PATH_TO_FLOOR_SPRITE = os.path.join("data", "sprites", "dummy_floor_sand_32x20.png")
+PATH_TO_WALL_SPRITE = os.path.join("data", "sprites", "dummy_wall_terracotta_32x12.png")
+PATH_TO_ROOF_SPRITE = os.path.join("data", "sprites", "dummy_roof_blue_32x20.png")
 
 
 class MapGridToScreen:
@@ -69,7 +70,7 @@ class PrepareForRendering:
         top_left = np.copy(top_left_of_tile)
         return (
             (
-                PATH_TO_FLOOR_SPRITE,
+                "floor sprite",
                 top_left,
                 (0, top_left[1] + cell_dims[1]),
             ),
@@ -87,8 +88,8 @@ class PrepareForRendering:
         """
         # Determine sprite sizes
         cell_dims = np.copy(cell_dimensions)
-        wall_dimensions = sprite_dimensions[PATH_TO_WALL_SPRITE]
-        roof_dimensions = sprite_dimensions[PATH_TO_ROOF_SPRITE]
+        wall_dimensions = sprite_dimensions["wall sprite"]
+        roof_dimensions = sprite_dimensions["roof sprite"]
         # Determine where the top left corner of the wall sprite is to be drawn on the screen.
         wall_top_left = np.copy(top_left_of_tile)
         wall_top_left[1] += cell_dims[1] - wall_dimensions[1]
@@ -101,12 +102,12 @@ class PrepareForRendering:
         roof_bottom_left = np.copy(wall_top_left)
         return (
             (
-                PATH_TO_WALL_SPRITE,
+                "wall sprite",
                 wall_top_left,
                 (1, wall_bottom_left[1]),
             ),
             (
-                PATH_TO_ROOF_SPRITE,
+                "roof sprite",
                 roof_top_left,
                 (1, roof_bottom_left[1]),
             ),
@@ -183,7 +184,7 @@ class Render:
     def sprites(
         *,
         screen: pygame.surface.Surface,
-        images: Iterable[pygame.surface.Surface],
+        images: Dict[str, pygame.surface.Surface],
         sprites_info: Iterable[Tuple[str, np.array, Tuple[int, int]]],
     ) -> None:
         """Determine order that sprites should be drawn in and blit them onto the screen.
@@ -194,6 +195,23 @@ class Render:
         ordered_sprites_info = PrepareForRendering.order_by_priority(sprites_info)
         for (image_id, position, _) in ordered_sprites_info:
             screen.blit(images[image_id], position)
+
+
+class SpriteMaker:
+    """Used to obtain default images or generate images using a neural network from a NEAT genome & config."""
+
+    def __init__(self):
+        self.default_sprite_image_paths = {
+            "floor sprite": PATH_TO_FLOOR_SPRITE,
+            "wall sprite": PATH_TO_WALL_SPRITE,
+            "roof sprite": PATH_TO_ROOF_SPRITE,
+        }
+        # Load images (this needs to happen after a pygame display is initialised)
+        self.default_images = {key: ImageIO.load_png(path) for key, path in self.default_sprite_image_paths.items()}
+
+    def get_image(self, *, sprite_type: str, generating_function: Callable = None) -> pygame.surface.Surface:
+        if generating_function is None:
+            return self.default_images[sprite_type]
 
 
 class ExampleDisplay:
@@ -246,7 +264,10 @@ class ExampleDisplay:
         pygame.display.set_caption("Interactive NEAT-python pixel image generation.")
 
         # Load images (this needs to happen after a pygame display is initialised)
-        self.images: Dict[str, pygame.Surface] = ImageIO.images_from_paths(self.image_paths)
+        sprite_maker = SpriteMaker()
+        sprite_types = ("floor sprite", "wall sprite", "roof sprite")
+        self.images: Dict[str, pygame.Surface] = \
+            {sprite_type: sprite_maker.get_image(sprite_type=sprite_type) for sprite_type in sprite_types}
 
     def run(self, maximum_frames=None):
         running = True
@@ -334,7 +355,10 @@ class MultiTilesetDisplay:
         pygame.display.set_caption("Interactive NEAT-python pixel image generation.")
 
         # Load images (this needs to happen after a pygame display is initialised)
-        self.images: Dict[str, pygame.Surface] = ImageIO.images_from_paths(self.image_paths)
+        sprite_maker = SpriteMaker()
+        sprite_types = ("floor sprite", "wall sprite", "roof sprite")
+        self.images: Dict[str, pygame.Surface] = \
+            {sprite_type: sprite_maker.get_image(sprite_type=sprite_type) for sprite_type in sprite_types}
 
     def _make_buttons(
         self, button_grid_size: Tuple[int, int], button_dimensions: Tuple[int, int]
