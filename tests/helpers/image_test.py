@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 from numpy.testing import assert_array_equal
 
@@ -36,3 +37,20 @@ class TestImageConverter:
             [-1, -1, -1, -1, -1],
         ])
         assert_array_equal(result, expected)
+
+    @pytest.mark.parametrize(
+        "given, expected",
+        (
+            (0.0, (0, 0, 0, 0)),
+            (0.249, (0, 0, 0, 0)),
+            (0.25, (1, 1, 1, 1)),
+            (0.2501, (1, 1, 1, 1)),
+            (0.5, (2, 2, 2, 2)),
+            (0.999, (3, 3, 3, 3)),
+            (0.6, (2, 2, 2, 2)),
+        )
+    )
+    def test_map_continuous_value_to_discrete_rgba_palette_returns_expected_rgba(self, given, expected):
+        palette = ((0, 0, 0, 0), (1, 1, 1, 1), (2, 2, 2, 2), (3, 3, 3, 3))
+        result = ImageConverter.map_continuous_value_to_discrete_rgba_palette(given, palette)
+        assert result == expected

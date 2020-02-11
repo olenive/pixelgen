@@ -40,7 +40,11 @@ class ImageConverter:
         return rgba_tuples, np.shape(rgba_array)
 
     def grid_from_rgba(rgba_array: np.ndarray) -> np.ndarray:
-        """Map an array produced by reading an RGBA image to a 2D array of cell types."""
+        """Map an array produced by reading an RGBA image to a 2D array of cell types.
+
+        This is used to encode convert level maps stored as PNG files to a matrix of integers.  These can later be used
+        to generate terrain.
+        """
         mapping = {
             tuple([0, 0, 0, 0]): -1,  # nothing -> -1
             tuple([0, 0, 0, 255]): 0,  # black -> 0
@@ -51,3 +55,14 @@ class ImageConverter:
         for i, v in enumerate(flat):
             out[i] = mapping[v]
         return np.reshape(out, (rows, columns))
+
+    def map_continuous_value_to_discrete_rgba_palette(
+        value: float,
+        palette: Iterable[Tuple[int, int, int, int]],
+        value_range=(0, 1),
+    ) -> Tuple[int, int, int, int]:
+        """Use a float to select an RGBA value from a palette of colours."""
+        bin_size = (value_range[1] - value_range[0]) / len(palette)
+        bins = tuple([i * bin_size for i in range(len(palette))])
+        index = np.digitize(value, bins) - 1
+        return palette[index]
