@@ -1,14 +1,11 @@
 import os
 import numpy as np
-from typing import Iterable, Dict, Tuple, Callable
+from collections import namedtuple
+from typing import Iterable, Dict, Tuple, Callable, NamedTuple, Any
 import pygame
+import neat
 
 from helpers.image import ImageIO
-
-
-PATH_TO_FLOOR_SPRITE = os.path.join("data", "sprites", "dummy_floor_sand_32x20.png")
-PATH_TO_WALL_SPRITE = os.path.join("data", "sprites", "dummy_wall_terracotta_32x12.png")
-PATH_TO_ROOF_SPRITE = os.path.join("data", "sprites", "dummy_roof_blue_32x20.png")
 
 
 class MapGridToScreen:
@@ -37,6 +34,196 @@ class MapGridToScreen:
         top_left[0] += cell_dimensions[0] * (grid_cell[1])
         top_left[1] += cell_dimensions[1] * (grid_cell[0])
         return top_left
+
+
+class Renderable(NamedTuple):
+    """Data describing an object to be rendered on screen."""
+    get_image: Callable
+    position: Tuple[int, int]
+    priority: Tuple[int, int]
+
+
+class Render:
+
+    def generate_sprite_from_nn(
+        inputs: Iterable[Iterable[int]],
+        neural_network: Any,  # Needs to have an activate method.
+    ) -> pygame.surface.Surface:
+        nn_out = neural_network.activate(input)
+        pass
+
+
+class Tile(NamedTuple):
+    """Data describing a type of object that could be rendered on screen but can have multiple variants.
+
+    For example, a floor tile may have different sprites depending on the contents of adjacent grid cells.
+    """
+    tile_type: str
+    inputs_to_sprites: Dict[Iterable, Callable[[], pygame.surface.Surface]]
+    dimensions: Tuple[int, int]
+    genome_id: neat.genome.DefaultGenome
+    config: neat.genome.DefaultGenomeConfig
+    neural_network: Any
+
+
+class TileMaker:
+    """Given populations of neural networks, generates sprites and returns Tile objects containing Rendrable objects.
+
+    The sprite for a given tile depends on the neural network used to generate it and on the inputs to that network.
+
+    We want to co-evolve several populations of neural networks so that each population can correspond to a particular
+    tile (e.g. floor, wall or roof).  Thus we need to be able to different Tile objects for each type of tile.  Each
+    tile instance of the same type (e.g. floor) can link to sprites generated using different neural networks.
+
+    NN input corresponds to 0 or 1 for passable or impassable respectively in the following orders:
+    Wall: [West, East]
+    Floor: [West, North, East]
+    Roof: [West, South, East]
+    """
+
+    # def sprites_for_population(
+    #     self, inputs: Iterable[Iterable[int]], population: neat.population.Population
+    # ) -> Iterable[Tuple[Iterable[Iterable[int]], pygame.surface.Surface]]:
+    #     """Generate sprites for every set of inputs to every genome in the population.
+        
+    #     Returns mapping of input to sprite
+    #     """
+    #     pass
+    #     # This needs to map genome ids to sprites...
+
+    def __init__(
+        self,
+        *,
+        floor_tile_population_and_config: Tuple[neat.population.Population, neat.genome.DefaultGenomeConfig],
+        wall_tile_population_and_config: Tuple[neat.population.Population, neat.genome.DefaultGenomeConfig],
+        roof_tile_population_and_config: Tuple[neat.population.Population, neat.genome.DefaultGenomeConfig],
+        floor_tile_dimensions=(32, 20),
+        wall_tile_dimensions=(32, 12),
+        roof_tile_dimensions=(32, 20),
+        default_floor_png_path=os.path.join("data", "sprites", "dummy_floor_sand_32x20.png"),
+        default_wall_png_path=os.path.join("data", "sprites", "dummy_wall_terracotta_32x12.png"),
+        default_roof_png_path=os.path.join("data", "sprites", "dummy_roof_blue_32x20.png"),
+    ) -> None:
+        # TODO: use Dict[tile type -> population] etc
+        self.floor_tile_population_and_config = floor_tile_population_and_config
+        self.wall_tile_population_and_config = wall_tile_population_and_config
+        self.roof_tile_population_and_config = roof_tile_population_and_config
+        self.floor_tile_dimensions = floor_tile_dimensions
+        self.wall_tile_dimensions = wall_tile_dimensions
+        self.roof_tile_dimensions = roof_tile_dimensions
+        self.default_floor_sprite = ImageIO.load_png(default_floor_png_path)
+        self.default_wall_sprite = ImageIO.load_png(default_wall_png_path)
+        self.default_roof_sprite = ImageIO.load_png(default_roof_png_path)
+        self.wall_inputs = (
+            (0, 0),
+            (1, 0),
+            (0, 1),
+            (1, 1),
+        )
+        self.floor_inputs = (
+            (0, 0, 0),
+            (1, 0, 0),
+            (0, 1, 0),
+            (0, 0, 1),
+            (0, 1, 1),
+            (1, 0, 1),
+            (1, 1, 0),
+            (1, 1, 1),
+        )
+        self.roof_inputs = (
+            (0, 0, 0),
+            (1, 0, 0),
+            (0, 1, 0),
+            (0, 0, 1),
+            (0, 1, 1),
+            (1, 0, 1),
+            (1, 1, 0),
+            (1, 1, 1),
+        )
+        # For each tile type generate sprites for each genome.
+        # self.wall_sprites = self.sprites_for_population(self.wall_inputs, self.wall_tile_population_and_config)
+
+    def default_wall(self) -> Tile:
+        mapping_inputs_to_sprite_getter = {i: lambda: self.default_wall_sprite for i in self.wall_inputs}
+        return Tile(
+            tile_type="wall",
+            inputs_to_sprites=mapping_inputs_to_sprite_getter,
+            dimensions=self.wall_tile_dimensions,
+            genome_id=None,
+            config=None,
+            neural_network=None,
+        )
+
+    def default_floor(self) -> Tile:
+        mapping_inputs_to_sprite_getter = {i: lambda: self.default_floor_sprite for i in self.floor_inputs}
+        return Tile(
+            tile_type="floor",
+            inputs_to_sprites=mapping_inputs_to_sprite_getter,
+            dimensions=self.floor_tile_dimensions,
+            genome_id=None,
+            config=None,
+            neural_network=None,
+        )
+
+    def default_roof(self) -> Tile:
+        mapping_inputs_to_sprite_getter = {i: lambda: self.default_roof_sprite for i in self.roof_inputs}
+        return Tile(
+            tile_type="roof",
+            inputs_to_sprites=mapping_inputs_to_sprite_getter,
+            dimensions=self.roof_tile_dimensions,
+            genome_id=None,
+            config=None,
+            neural_network=None,
+        )
+
+    def wall(self, genome_id: Any) -> Tile:
+        return Tile(
+            tile_type="wall",
+            inputs_to_sprites={i: lambda: self.wall_sprites[genome_id] for i in self.wall_inputs},
+            dimensions=self.wall_tile_dimensions,
+            genome_id=None,
+            config=None,
+            neural_network=None,
+        )
+
+    def floor(self) -> Tile:
+        mapping_inputs_to_sprite_getter = {i: lambda: self.default_floor_sprite for i in self.floor_inputs}
+        return Tile(
+            tile_type="floor",
+            inputs_to_sprites=mapping_inputs_to_sprite_getter,
+            dimensions=self.floor_tile_dimensions,
+            genome_id=None,
+            config=None,
+            neural_network=None,
+        )
+
+    def roof(self) -> Tile:
+        mapping_inputs_to_sprite_getter = {i: lambda: self.default_roof_sprite for i in self.roof_inputs}
+        return Tile(
+            tile_type="roof",
+            inputs_to_sprites=mapping_inputs_to_sprite_getter,
+            dimensions=self.roof_tile_dimensions,
+            genome_id=None,
+            config=None,
+            neural_network=None,
+        )
+
+
+class Render:
+
+    def on_screen(
+        *,
+        screen: pygame.surface.Surface,
+        renderables: Iterable[Renderable],
+    ) -> None:
+        """Determine order that sprites should be drawn in and blit them onto the screen.
+
+        Note: ordering is the last step before drawing so that sprites combined from different
+        sources or generated be different processes can be ordered correctly relative to eachother.
+        """
+        ordered_sprites_info = PrepareForRendering.order_by_priority(sprites_info)
+        for (image_id, position, _) in ordered_sprites_info:
+            screen.blit(images[image_id], position)
 
 
 class PrepareForRendering:
@@ -178,265 +365,3 @@ class PrepareForRendering:
         """
         return sorted(image_info, key=lambda x: x[2][0] * 100000000000 + x[2][1])
 
-
-class Render:
-
-    def sprites(
-        *,
-        screen: pygame.surface.Surface,
-        images: Dict[str, pygame.surface.Surface],
-        sprites_info: Iterable[Tuple[str, np.array, Tuple[int, int]]],
-    ) -> None:
-        """Determine order that sprites should be drawn in and blit them onto the screen.
-
-        Note: ordering is the last step before drawing so that sprites combined from different
-        sources or generated be different processes can be ordered correctly relative to eachother.
-        """
-        ordered_sprites_info = PrepareForRendering.order_by_priority(sprites_info)
-        for (image_id, position, _) in ordered_sprites_info:
-            screen.blit(images[image_id], position)
-
-
-class SpriteMaker:
-    """Used to obtain default images or generate images using a neural network from a NEAT genome & config."""
-
-    def __init__(self):
-        self.default_sprite_image_paths = {
-            "floor sprite": PATH_TO_FLOOR_SPRITE,
-            "wall sprite": PATH_TO_WALL_SPRITE,
-            "roof sprite": PATH_TO_ROOF_SPRITE,
-        }
-        # Load images (this needs to happen after a pygame display is initialised)
-        self.default_images = {key: ImageIO.load_png(path) for key, path in self.default_sprite_image_paths.items()}
-
-    def get_image(self, *, sprite_type: str, generating_function: Callable = None) -> pygame.surface.Surface:
-        if generating_function is None:
-            return self.default_images[sprite_type]
-
-
-class ExampleDisplay:
-    """Create a window and display images.
-
-    NOTE: Unfortunately the PNG images need to be loaded after the window is initialised otherwise a
-    "cannot convert without pygame.display initialized." error is raised by pygame.
-    """
-
-    def _collect_images_for_this_grid(self):
-        """Wrapper to avoid repetition between call in init and subsequent calls
-
-        Note: the call in init may not be needed anyway?
-        """
-        return PrepareForRendering.order_by_priority(
-            PrepareForRendering.collect_images_for_grid(
-                grid=self.tile_grid,
-                cell_dimensions=self.cell_dimensions,
-                top_left_position_of_grid=self.top_left_position_of_grid,
-                sprite_dimensions=self.sprite_dimensions,
-            )
-        )
-
-    def __init__(
-        self,
-        *,
-        tile_grid: np.ndarray,
-        cell_dimensions: np.ndarray,
-        top_left_position_of_grid: np.ndarray,
-        sprite_dimensions: Dict[str, Tuple[int, int]],  # Sprite id -> sprite width and height
-    ) -> None:
-        self.tile_grid = np.copy(tile_grid)
-        self.cell_dimensions = np.copy(cell_dimensions)
-        self.top_left_position_of_grid = np.copy(top_left_position_of_grid)
-        self.sprite_dimensions = sprite_dimensions
-
-        self.window_scale = 40
-        self.window_width = 32 * self.window_scale
-        self.window_height = 20 * self.window_scale
-
-        self.image_paths = (
-            PATH_TO_FLOOR_SPRITE,
-            PATH_TO_WALL_SPRITE,
-            PATH_TO_ROOF_SPRITE,
-        )
-
-        # Initialise pygame
-        pygame.init()
-        self.screen = pygame.display.set_mode((self.window_width, self.window_height))
-        pygame.display.set_caption("Interactive NEAT-python pixel image generation.")
-
-        # Load images (this needs to happen after a pygame display is initialised)
-        sprite_maker = SpriteMaker()
-        sprite_types = ("floor sprite", "wall sprite", "roof sprite")
-        self.images: Dict[str, pygame.Surface] = \
-            {sprite_type: sprite_maker.get_image(sprite_type=sprite_type) for sprite_type in sprite_types}
-
-    def run(self, maximum_frames=None):
-        running = True
-        frame_counter = 0
-        while running:
-            if maximum_frames is not None:
-                frame_counter += 1
-                if frame_counter >= maximum_frames:
-                    running = False
-
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    running = False
-                    break
-
-            if running:  # This if statement prevents a segfault from occuring when closing the pygame window.
-                self.screen.fill((0, 0, 0))
-                self.ids_positions_priorities = self._collect_images_for_this_grid()
-                Render.sprites(
-                    screen=self.screen,
-                    images=self.images,
-                    sprites_info=self.ids_positions_priorities,
-                )
-                pygame.display.flip()
-
-
-class ToggleableButton:
-    """Rectangular button containing an image that can be toggled on or off.
-
-    Rather than holding the image surface directly this object hold instructions for which image to draw in the form of
-    an iterable of tuples of image ids, image positions and draw priorites.
-    """
-
-    def __init__(
-        self,
-        *,
-        top_left: Tuple[int, int],
-        dimensions: Tuple[int, int],
-        image_info: Iterable[Tuple[str, np.array, Tuple[int, int]]],
-        initial_state: bool = False
-    ):
-        self.top_left = top_left
-        self.dimensions = dimensions
-        self.state = initial_state
-        self.image_info = image_info
-        self.rect = pygame.Rect(top_left, dimensions)
-
-
-class MultiTilesetDisplay:
-    """Show more than one tile set in a single window."""
-
-    def __init__(
-        self,
-        *,
-        tile_grid: np.ndarray,
-        button_grid_size: np.ndarray,
-        cell_dimensions: np.ndarray,
-        button_dimensions: np.ndarray,
-        top_left_position_of_grid: np.ndarray,
-        sprite_dimensions: Dict[str, Tuple[int, int]],  # Sprite id -> sprite width and height
-        button_inner_boarder: np.ndarray,  # Used to create space between button boarder and the image in the button.
-    ) -> None:
-        self.tile_grid = np.copy(tile_grid)
-        self.button_grid_size = np.copy(button_grid_size)
-        self.cell_dimensions = np.copy(cell_dimensions)
-        self.button_dimensions = np.copy(button_dimensions)
-        self.top_left_position_of_grid = np.copy(top_left_position_of_grid)
-        self.sprite_dimensions = sprite_dimensions
-        self.button_inner_boarder = np.copy(button_inner_boarder)
-
-        self.window_scale = 40
-        self.window_width = 32 * self.window_scale
-        self.window_height = 20 * self.window_scale
-
-        self.image_paths = (
-            PATH_TO_FLOOR_SPRITE,
-            PATH_TO_WALL_SPRITE,
-            PATH_TO_ROOF_SPRITE,
-        )
-
-        # Initialise pygame
-        pygame.init()
-        self.screen = pygame.display.set_mode((self.window_width, self.window_height))
-        pygame.display.set_caption("Interactive NEAT-python pixel image generation.")
-
-        # Load images (this needs to happen after a pygame display is initialised)
-        sprite_maker = SpriteMaker()
-        sprite_types = ("floor sprite", "wall sprite", "roof sprite")
-        self.images: Dict[str, pygame.Surface] = \
-            {sprite_type: sprite_maker.get_image(sprite_type=sprite_type) for sprite_type in sprite_types}
-
-    def _make_buttons(
-        self, button_grid_size: Tuple[int, int], button_dimensions: Tuple[int, int]
-    ) -> Iterable[ToggleableButton]:
-        """Create button objects that can the be used to draw buttons on the screen and detect clicks."""
-        buttons = []
-        for irow in range(button_grid_size[0]):
-            for icol in range(button_grid_size[1]):
-                top_left_position_of_button = MapGridToScreen.top_left_of_cell(
-                    grid_cell=(irow, icol),
-                    cell_dimensions=self.button_dimensions,
-                    top_left_position_of_grid=self.top_left_position_of_grid,
-                )
-                button_images_info: Iterable[str, np.ndarray, Tuple[int, int]] = \
-                    PrepareForRendering.collect_images_for_grid(
-                        grid=self.tile_grid,
-                        cell_dimensions=self.cell_dimensions,
-                        top_left_position_of_grid=top_left_position_of_button + self.button_inner_boarder, 
-                        sprite_dimensions=self.sprite_dimensions,
-                    )
-                buttons.append(
-                    ToggleableButton(
-                        top_left=top_left_position_of_button,
-                        dimensions=self.button_dimensions,
-                        image_info=button_images_info,
-                    )
-                )
-        return buttons
-
-    def _collect_button_image_info(
-        self, buttons: Iterable[ToggleableButton]
-    ) -> Iterable[Tuple[str, np.array, Tuple[int, int]]]:
-        """Gather image info from multiple buttons into a single tuple of image ids, positions and priorities."""
-        images_info = []
-        for button in buttons:
-            images_info += button.image_info
-        return tuple(images_info)
-
-    def _draw_button_boarders(self, screen, buttons):
-        for button in buttons:
-            if button.state:
-                pygame.draw.rect(screen, [190, 190, 190, 200], button.rect, width=2)
-
-    def draw_buttons(self, maximum_frames=None):
-        """Draw a grid of buttons containing multiple tile sets."""
-        buttons = self._make_buttons(
-            button_grid_size=self.button_grid_size,
-            button_dimensions=self.button_dimensions,
-        )
-
-        running = True
-        frame_counter = 0
-        while running:
-            if maximum_frames is not None:
-                frame_counter += 1
-                if frame_counter >= maximum_frames:
-                    running = False
-
-            for event in pygame.event.get():
-                # Exit the pygame window without causing errors.
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    running = False
-                    break
-
-                # Toggle buttons in response to click.
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    for button in buttons:
-                        if button.rect.collidepoint(pygame.mouse.get_pos()):
-                            button.state = not button.state
-
-            if running:  # This if statement prevents a segfault from occuring when closing the pygame window.
-                self.screen.fill((0, 0, 0))
-                button_images_info = self._collect_button_image_info(buttons)
-                Render.sprites(
-                    screen=self.screen,
-                    images=self.images,
-                    sprites_info=button_images_info,
-                )
-                self._draw_button_boarders(self.screen, buttons)
-                pygame.display.flip()
