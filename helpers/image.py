@@ -25,7 +25,7 @@ class ImageIO:
         return {path: ImageIO.load_png(path) for path in paths}
 
 
-class ImageConverter:
+class ImageConvert:
 
     def flat_hashable_from_rgba(
         rgba_array: np.ndarray
@@ -50,19 +50,43 @@ class ImageConverter:
             tuple([0, 0, 0, 255]): 0,  # black -> 0
             tuple([255, 255, 255, 255]): 1,  # white -> 1
         }
-        flat, (rows, columns, colours) = ImageConverter.flat_hashable_from_rgba(rgba_array)
+        flat, (rows, columns, colours) = ImageConvert.flat_hashable_from_rgba(rgba_array)
         out = np.full(rows * columns, np.nan)
         for i, v in enumerate(flat):
             out[i] = mapping[v]
         return np.reshape(out, (rows, columns))
 
-    def map_continuous_value_to_discrete_rgba_palette(
+    def continuous_value_to_discrete_palette(
         value: float,
         palette: Iterable[Tuple[int, int, int, int]],
         value_range=(0, 1),
     ) -> Tuple[int, int, int, int]:
-        """Use a float to select an RGBA value from a palette of colours."""
+        """Use a float to select an set of values from a palette of colours."""
         bin_size = (value_range[1] - value_range[0]) / len(palette)
         bins = tuple([i * bin_size for i in range(len(palette))])
         index = np.digitize(value, bins) - 1
         return palette[index]
+
+    def matrix_to_rgb_palette_and_alphas(
+        matrix: np.ndarray,
+        palette: Iterable[Tuple[int, int, int, int]],
+        value_range=(0, 1),
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Produces a 3D array of RGB values selected from the palette using a 2D numpy array of values.
+
+        Also returns a 2D array of alpha values.
+
+        The alpha values are separate because pygame.surfarray works with them separately.
+        """
+        rgb_palette = tuple([v[0: 3] for v in palette])
+        alpha_palette = tuple([v[3] for v in palette])
+        rows, columns = np.shape(matrix)
+        rgb_out = np.empty((rows, columns, 3))
+        alpha_out = np.empty((rows, columns))
+        for irow in range(rows):
+            for icol in range(columns):
+                rgb_out[irow, icol] = ImageConvert.continuous_value_to_discrete_palette(
+                    matrix[irow, icol], rgb_palette)
+                alpha_out[irow, icol] = ImageConvert.continuous_value_to_discrete_palette(
+                    matrix[irow, icol], alpha_palette)
+        return rgb_out, alpha_out
