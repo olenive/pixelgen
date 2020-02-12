@@ -1,14 +1,14 @@
 """Example code used to make a sprite from a neural network defined by a NEAT genome and config."""
 
 import os
+import time
 from typing import Any
 import numpy as np
 import neat
 import pygame
-from pygame import surfarray
 from typing import List
 
-from helpers.image import ImageIO, ImageConvert
+from helpers.image import ImageConvert, MakeSurface
 
 
 SPRITE_DIMENSIONS = (32, 12)
@@ -47,34 +47,8 @@ rgb_array, alphas = ImageConvert.matrix_to_rgb_palette_and_alphas(reshaped_net_o
 """Initialise a pygame window and draw the sprite."""
 screen = pygame.display.set_mode((500, 800))
 screen.fill((0, 0, 0))
-
-# TODO: Figure out alphas and surface locking.
-draw_surface_1 = pygame.surface.Surface(SPRITE_DIMENSIONS)
-pygame.surfarray.blit_array(draw_surface_1, rgb_array)
-screen.blit(draw_surface_1, (10, 30))
-
-draw_surface_2 = pygame.surface.Surface(SPRITE_DIMENSIONS)
-pygame.surfarray.blit_array(draw_surface_2, rgb_array)
-
-
-class MutateSurface:
-    """Collection of impure functions operating on Surface objects."""
-
-    def set_alphas(surface: pygame.surface.Surface, alphas: np.ndarray) -> None:
-        """Access the alpha values of a Surface and set them to the values in the supplied array.
-
-        Keeping the reference to the surface contained inside the functions scope results in the surface being unlocked
-        so that it an be subseuently used with the blit method.  Otherwise the surface is locked while the reference
-        array exists.
-        """
-        surface_alphas = pygame.surfarray.pixels_alpha(surface)
-        surface_alphas[:] = alphas[:]
-
-
-MutateSurface.set_alphas(draw_surface_2, alphas)
-
-
-screen.blit(draw_surface_2, (50, 30))
-
-
+sprite = MakeSurface.from_rgb_and_alpha_arrays(rgb_array, alphas)
+screen.blit(sprite, (50, 30))
 pygame.display.flip()
+
+time.sleep(30)

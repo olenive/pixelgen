@@ -90,3 +90,31 @@ class ImageConvert:
                 alpha_out[irow, icol] = ImageConvert.continuous_value_to_discrete_palette(
                     matrix[irow, icol], alpha_palette)
         return rgb_out, alpha_out
+
+
+class MutateSurface:
+    """Collection of impure functions operating on Surface objects."""
+
+    def set_alphas(surface: pygame.surface.Surface, alphas: np.ndarray) -> None:
+        """Access the alpha values of a Surface and set them to the values in the supplied array.
+
+        Keeping the reference to the surface contained inside the functions scope results in the surface being unlocked
+        so that it an be subseuently used with the blit method.  Otherwise the surface is locked while the reference
+        array exists.
+        """
+        surface_alphas = pygame.surfarray.pixels_alpha(surface)
+        surface_alphas[:] = alphas[:]
+
+
+class MakeSurface:
+    """Wraper for functions that make a Surfaces from arrays.
+
+    The surface needs to have the same dimensions as the array and applying alpha requires mutating the Surface object.
+    """
+
+    def from_rgb_and_alpha_arrays(rgb_array: np.ndarray, alpha_array) -> pygame.surface.Surface:
+        """Make a surface with an image from a 3D array of RGB values and a 2D array of alpha values."""
+        draw_surface = pygame.surface.Surface(np.shape(alpha_array))
+        pygame.surfarray.blit_array(draw_surface, rgb_array)
+        MutateSurface.set_alphas(draw_surface, alpha_array)
+        return draw_surface
