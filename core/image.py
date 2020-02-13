@@ -99,7 +99,7 @@ class MutateSurface:
         """Access the alpha values of a Surface and set them to the values in the supplied array.
 
         Keeping the reference to the surface contained inside the functions scope results in the surface being unlocked
-        so that it an be subseuently used with the blit method.  Otherwise the surface is locked while the reference
+        so that it an be later used with the blit method.  Otherwise the surface is locked while the reference
         array exists.
         """
         surface_alphas = pygame.surfarray.pixels_alpha(surface)

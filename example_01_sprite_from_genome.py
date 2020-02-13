@@ -8,7 +8,7 @@ import neat
 import pygame
 from typing import List
 
-from helpers.image import ImageConvert, MakeSurface
+from core.image import ImageConvert, MakeSurface
 
 
 SPRITE_DIMENSIONS = (32, 12)

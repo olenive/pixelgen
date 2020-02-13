@@ -50,7 +50,14 @@ class InteractiveEvolution:
         display.draw_buttons(maximum_frames=None)
 
     def eval_fitness(self, genomes, config):
-        pass
+        selected = []
+        rects = []
+        for n, (genome_id, genome) in enumerate(genomes):
+            selected.append(False)
+            row, col = divmod(n, self.num_cols)
+            rects.append(pygame.Rect(4 + (self.thumb_width + 4) * col,
+                                     4 + (self.thumb_height + 4) * row,
+                                     self.thumb_width, self.thumb_height))
 
 
 if __name__ == "__main__":
