@@ -3,7 +3,7 @@ import numpy as np
 import neat
 from typing import Any, Iterable, Tuple, List
 
-from core.data_structures import TilePrototype
+from core.tiles import TilePrototype
 from core.image import ImageConvert
 
 
@@ -72,7 +72,7 @@ example_floor_prototype = TilePrototype(
     genome_id=genome_id,
     config=config,
     neural_network=neural_network,
-    inputs_to_rgb_and_alpha={
+    inputs_to_rgbs_and_alphas={
         nn_input: make_rgb_and_alpha(neural_network, nn_input, sprite_dimensions, palette) for nn_input in inputs_set
     },
 )

@@ -5,7 +5,7 @@ from typing import Iterable, Dict, Tuple, Callable, NamedTuple, Any
 import pygame
 import neat
 
-from helpers.image import ImageIO
+from core.image import ImageIO
 
 
 class MapGridToScreen:
@@ -52,8 +52,6 @@ class Render:
         nn_out = neural_network.activate(input)
         pass
 
-
-class Render:
 
     def on_screen(
         *,
