@@ -42,4 +42,4 @@ tile_prototype_maker = TilePrototypeMaker(
     tiles_types_to_populations_configs=tile_types_to_populations_configs,
 )
 
-tile_prototypes: Dict[str, Dict[int, Dict[Iterable[int], TilePrototype]]] = tile_prototype_maker.prototype_populations()
+tile_prototypes: Dict[str, Dict[int, TilePrototype]] = tile_prototype_maker.prototype_populations()

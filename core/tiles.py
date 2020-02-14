@@ -105,9 +105,11 @@ class TilePrototypeMaker:
         reshaped_output = np.reshape(np.array(nn_output), sprite_dimensions)
         return ImageConvert.matrix_to_rgb_palette_and_alphas(reshaped_output, palette)
 
-    def prototype_populations(self) -> Dict[str, Dict[int, Dict[Iterable[int], TilePrototype]]]:
+    def prototype_populations(self) -> Dict[str, Dict[int, TilePrototype]]:
         """Make a dictionary of tile types to dictionaries of genome ids to TilePrototype instances."""
-        def _inputs_to_arrays(neural_network, nn_inputs) -> Dict[Iterable[int], Tuple[np.ndarray, np.ndarray]]:
+        def _inputs_to_arrays(
+            neural_network, nn_inputs: Iterable[Tuple]
+        ) -> Dict[Iterable[int], Tuple[np.ndarray, np.ndarray]]:
             return {
                 nn_input: TilePrototypeMaker.rgb_and_alpha(
                         neural_network,
@@ -115,7 +117,7 @@ class TilePrototypeMaker:
                         self.sprite_dimensions[tile_type],
                         self.sprite_palettes[tile_type],
                     )
-                for nn_input in self.nn_inputs[tile_type]
+                for nn_input in nn_inputs
             }
 
         tile_types_dict = {}
@@ -123,16 +125,13 @@ class TilePrototypeMaker:
             genomes_dict = {}
             for genome_id, genome in population.population.items():
                 neural_network = neat.nn.FeedForwardNetwork.create(genome, config)
-                inputs_dict = {}
-                for nn_input in self.nn_inputs[tile_type]:
-                    inputs_dict[nn_input] = TilePrototype(
-                        tile_type=tile_type,
-                        dimensions=self.sprite_dimensions[tile_type],
-                        genome_id=genome_id,
-                        config=config,
-                        neural_network=neural_network,
-                        inputs_to_rgbs_and_alphas=_inputs_to_arrays(neural_network, nn_input)
-                    )
-                genomes_dict[genome_id] = inputs_dict
+                genomes_dict[genome_id] = TilePrototype(
+                    tile_type=tile_type,
+                    dimensions=self.sprite_dimensions[tile_type],
+                    genome_id=genome_id,
+                    config=config,
+                    neural_network=neural_network,
+                    inputs_to_rgbs_and_alphas=_inputs_to_arrays(neural_network, self.nn_inputs[tile_type])
+                )
             tile_types_dict[tile_type] = genomes_dict
         return tile_types_dict

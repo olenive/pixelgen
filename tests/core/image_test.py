@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_array_equal
 
-from helpers.image import ImageConvert, ImageIO
+from core.image import ImageConvert, ImageIO
 
 
 class TestImageConvert:
