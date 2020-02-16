@@ -1,7 +1,9 @@
-from typing import Tuple, Iterable
+from typing import Tuple, Iterable, Dict
 import pygame
+import numpy as np
 
-from core.render import Renderable
+from core.render import Renderable, MapGridToScreen, PrepareForRendering
+from core.tiles import TilePrototype
 
 
 class ToggleableIllustratedButton:
@@ -16,143 +18,99 @@ class ToggleableIllustratedButton:
     def __init__(
         self,
         *,
+        button_id: int,
         top_left: Tuple[int, int],
         dimensions: Tuple[int, int],
         renderables: Iterable[Renderable],
-        initial_state: bool = False
+        initial_state: bool = False,
     ):
+        self.button_id = button_id
         self.top_left = top_left
         self.dimensions = dimensions
         self.state = initial_state
         self.renderables = renderables
         self.rect = pygame.Rect(top_left, dimensions)
 
-    def _draw_button_boarders(self, screen, buttons):
-        for button in buttons:
-            if button.state:
-                pygame.draw.rect(screen, [190, 190, 190, 200], button.rect, width=2)
 
-
-class MultiTilesetDisplay:
+class ToggleableIllustratedButtonArray:
     """Show more than one tile set in a single window."""
 
     def __init__(
         self,
         *,
         tile_grid: np.ndarray,
-        button_grid_size: np.ndarray,
-        cell_dimensions: np.ndarray,
-        button_dimensions: np.ndarray,
-        top_left_position_of_grid: np.ndarray,
+        rows_columns: Tuple[int, int],
+        cell_dimensions: Tuple[int, int],
+        button_dimensions: Tuple[int, int],
+        top_left_position_of_grid: Tuple[int, int],
         sprite_dimensions: Dict[str, Tuple[int, int]],  # Sprite id -> sprite width and height
-        button_inner_boarder: np.ndarray,  # Used to create space between button boarder and the image in the button.
+        button_inner_boarder: Tuple[int, int],  # Used to create space between the image in the button boarder.
+        tiles_genomes_prototypes: Dict[str, Dict[int, TilePrototype]],
     ) -> None:
-        self.tile_grid = np.copy(tile_grid)
-        self.button_grid_size = np.copy(button_grid_size)
-        self.cell_dimensions = np.copy(cell_dimensions)
-        self.button_dimensions = np.copy(button_dimensions)
-        self.top_left_position_of_grid = np.copy(top_left_position_of_grid)
+        self.tile_grid = tile_grid
+        self.rows_columns = rows_columns
+        self.cell_dimensions = cell_dimensions
+        self.button_dimensions = button_dimensions
+        self.top_left_position_of_grid = top_left_position_of_grid
         self.sprite_dimensions = sprite_dimensions
-        self.button_inner_boarder = np.copy(button_inner_boarder)
+        self.button_inner_boarder = button_inner_boarder
+        self.tiles_genomes_prototypes = tiles_genomes_prototypes
+        self.buttons = self._make_buttons()
 
-        self.window_scale = 40
-        self.window_width = 32 * self.window_scale
-        self.window_height = 20 * self.window_scale
+    def _gather_prototypes_by_genome_id(
+        tiles_genomes_prototypes: Dict[str, Dict[int, TilePrototype]], genome_id: int,
+    ) -> Dict[str, TilePrototype]:
+        return {tile: ids_prototypes[genome_id] for tile, ids_prototypes in tiles_genomes_prototypes.items()}
 
-        self.image_paths = (
-            PATH_TO_FLOOR_SPRITE,
-            PATH_TO_WALL_SPRITE,
-            PATH_TO_ROOF_SPRITE,
-        )
-
-        # Initialise pygame
-        pygame.init()
-        self.screen = pygame.display.set_mode((self.window_width, self.window_height))
-        pygame.display.set_caption("Interactive NEAT-python pixel image generation.")
-
-        # Load images (this needs to happen after a pygame display is initialised)
-        sprite_maker = SpriteMaker()
-        sprite_types = ("floor sprite", "wall sprite", "roof sprite")
-        self.images: Dict[str, pygame.Surface] = \
-            {sprite_type: sprite_maker.get_image(sprite_type=sprite_type) for sprite_type in sprite_types}
-
-    def _make_buttons(
-        self, button_grid_size: Tuple[int, int], button_dimensions: Tuple[int, int]
-    ) -> Iterable[ToggleableButton]:
+    def _make_buttons(self) -> Iterable[ToggleableIllustratedButton]:
         """Create button objects that can the be used to draw buttons on the screen and detect clicks."""
         buttons = []
-        for irow in range(button_grid_size[0]):
-            for icol in range(button_grid_size[1]):
+        button_id = 0
+        for irow in range(self.rows_columns[0]):
+            for icol in range(self.rows_columns[1]):
+                button_id += 1
                 top_left_position_of_button = MapGridToScreen.top_left_of_cell(
                     grid_cell=(irow, icol),
                     cell_dimensions=self.button_dimensions,
                     top_left_position_of_grid=self.top_left_position_of_grid,
                 )
-                button_images_info: Iterable[str, np.ndarray, Tuple[int, int]] = \
-                    PrepareForRendering.collect_images_for_grid(
-                        grid=self.tile_grid,
-                        cell_dimensions=self.cell_dimensions,
-                        top_left_position_of_grid=top_left_position_of_button + self.button_inner_boarder, 
-                        sprite_dimensions=self.sprite_dimensions,
-                    )
+                # TODO: Here we are assuming that there is an incidental one to one mapping between buttons and genomes.
+                # This may not be the case in the future and an explicit mapping may be needed
+                prototypes = ToggleableIllustratedButtonArray._gather_prototypes_by_genome_id(
+                    self.tiles_genomes_prototypes, button_id
+                )
+                print("")
+                print(f"{top_left_position_of_button = }, {self.button_inner_boarder = }")
+                button_renderables: Iterable[Renderable] = PrepareForRendering.collect_renderables_for_grid(
+                    grid=self.tile_grid,
+                    tile_prototypes=prototypes,
+                    top_left_position_of_grid=(
+                        tuple(np.array(top_left_position_of_button) + np.array(self.button_inner_boarder))
+                    ),
+                    cell_dimensions=self.cell_dimensions,
+                    wall_dimensions=self.sprite_dimensions["wall"],
+                    roof_dimensions=self.sprite_dimensions["roof"],
+                )
                 buttons.append(
-                    ToggleableButton(
+                    ToggleableIllustratedButton(
+                        button_id=button_id,
                         top_left=top_left_position_of_button,
                         dimensions=self.button_dimensions,
-                        image_info=button_images_info,
+                        renderables=button_renderables,
                     )
                 )
         return buttons
 
-    def _collect_button_image_info(
-        self, buttons: Iterable[ToggleableButton]
-    ) -> Iterable[Tuple[str, np.array, Tuple[int, int]]]:
-        """Gather image info from multiple buttons into a single tuple of image ids, positions and priorities."""
-        images_info = []
-        for button in buttons:
-            images_info += button.image_info
-        return tuple(images_info)
+    def collect_renderables(self) -> Iterable[Tuple[str, np.array, Tuple[int, int]]]:
+        """Gather Renderable objects from many buttons into a single tuple."""
+        renderables = []
+        for button in self.buttons:
+            renderables += button.renderables
+        return tuple(renderables)
 
-    def _draw_button_boarders(self, screen, buttons):
-        for button in buttons:
+    def draw_button_boarders(self, screen):
+        for button in self.buttons:
             if button.state:
                 pygame.draw.rect(screen, [190, 190, 190, 200], button.rect, width=2)
-
-    def draw_buttons(self, maximum_frames=None):
-        """Draw a grid of buttons containing multiple tile sets."""
-        buttons = self._make_buttons(
-            button_grid_size=self.button_grid_size,
-            button_dimensions=self.button_dimensions,
-        )
-
-        running = True
-        frame_counter = 0
-        while running:
-            if maximum_frames is not None:
-                frame_counter += 1
-                if frame_counter >= maximum_frames:
-                    running = False
-
-            for event in pygame.event.get():
-                # Exit the pygame window without causing errors.
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    running = False
-                    break
-
-                # Toggle buttons in response to click.
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    for button in buttons:
-                        if button.rect.collidepoint(pygame.mouse.get_pos()):
-                            button.state = not button.state
-
-            if running:  # This if statement prevents a segfault from occuring when closing the pygame window.
-                self.screen.fill((0, 0, 0))
-                button_images_info = self._collect_button_image_info(buttons)
-                Render.sprites(
-                    screen=self.screen,
-                    images=self.images,
-                    sprites_info=button_images_info,
-                )
-                self._draw_button_boarders(self.screen, buttons)
-                pygame.display.flip()
+            else:
+                pygame.draw.rect(screen, [90, 90, 90, 200], button.rect, width=1)
