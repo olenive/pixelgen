@@ -18,7 +18,7 @@ class TilePrototype(NamedTuple):
     """
     tile_type: str
     dimensions: Tuple[int, int]
-    genome_id: neat.genome.DefaultGenome  # Can we avoid typing this as DefaultGenome?
+    genome_id: int
     config: neat.genome.DefaultGenomeConfig  # Not sure if this should be config.Config or not.
     neural_network: Any
     inputs_to_rgbs_and_alphas: Dict[Iterable[int], Tuple[np.ndarray, np.ndarray]]

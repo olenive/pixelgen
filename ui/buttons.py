@@ -14,7 +14,6 @@ class ToggleableIllustratedButton:
 
     Created to display sprites to the user while they pick which ones they like.
     """
-
     def __init__(
         self,
         *,
@@ -22,6 +21,7 @@ class ToggleableIllustratedButton:
         top_left: Tuple[int, int],
         dimensions: Tuple[int, int],
         renderables: Iterable[Renderable],
+        tile_types_to_genome_ids: Dict[str, int],
         initial_state: bool = False,
     ):
         self.button_id = button_id
@@ -30,6 +30,7 @@ class ToggleableIllustratedButton:
         self.state = initial_state
         self.renderables = renderables
         self.rect = pygame.Rect(top_left, dimensions)
+        self.tile_types_to_genome_ids = tile_types_to_genome_ids
 
 
 class ToggleableIllustratedButtonArray:
@@ -58,29 +59,31 @@ class ToggleableIllustratedButtonArray:
         self.buttons = self._make_buttons()
 
     def _gather_prototypes_by_genome_id(
-        tiles_genomes_prototypes: Dict[str, Dict[int, TilePrototype]], genome_id: int,
+        tiles_genomes_prototypes: Dict[str, Dict[int, TilePrototype]], index: int,
     ) -> Dict[str, TilePrototype]:
-        return {tile: ids_prototypes[genome_id] for tile, ids_prototypes in tiles_genomes_prototypes.items()}
+        out = {}
+        for tile, ids_prototypes in tiles_genomes_prototypes.items():
+            # Aribitrarily associate genomes with tile types based on their ordered incices.
+            genome_id = sorted(ids_prototypes.keys())[index]
+            out[tile] = ids_prototypes[genome_id]
+        return out
 
     def _make_buttons(self) -> Iterable[ToggleableIllustratedButton]:
         """Create button objects that can the be used to draw buttons on the screen and detect clicks."""
         buttons = []
-        button_id = 0
+        button_index = 0
         for irow in range(self.rows_columns[0]):
             for icol in range(self.rows_columns[1]):
-                button_id += 1
                 top_left_position_of_button = MapGridToScreen.top_left_of_cell(
                     grid_cell=(irow, icol),
                     cell_dimensions=self.button_dimensions,
                     top_left_position_of_grid=self.top_left_position_of_grid,
                 )
                 # TODO: Here we are assuming that there is an incidental one to one mapping between buttons and genomes.
-                # This may not be the case in the future and an explicit mapping may be needed
-                prototypes = ToggleableIllustratedButtonArray._gather_prototypes_by_genome_id(
-                    self.tiles_genomes_prototypes, button_id
+                # This may not be the case in the future and an explicit mapping may be needed.
+                prototypes: Dict[str, TilePrototype] = ToggleableIllustratedButtonArray._gather_prototypes_by_genome_id(
+                    self.tiles_genomes_prototypes, button_index
                 )
-                print("")
-                print(f"{top_left_position_of_button = }, {self.button_inner_boarder = }")
                 button_renderables: Iterable[Renderable] = PrepareForRendering.collect_renderables_for_grid(
                     grid=self.tile_grid,
                     tile_prototypes=prototypes,
@@ -93,13 +96,15 @@ class ToggleableIllustratedButtonArray:
                 )
                 buttons.append(
                     ToggleableIllustratedButton(
-                        button_id=button_id,
+                        button_id=button_index,
                         top_left=top_left_position_of_button,
                         dimensions=self.button_dimensions,
                         renderables=button_renderables,
+                        tile_types_to_genome_ids={tile: prototype.genome_id for tile, prototype in prototypes.items()}
                     )
                 )
-        return buttons
+                button_index += 1
+        return tuple(buttons)
 
     def collect_renderables(self) -> Iterable[Tuple[str, np.array, Tuple[int, int]]]:
         """Gather Renderable objects from many buttons into a single tuple."""

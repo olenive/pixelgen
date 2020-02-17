@@ -192,8 +192,6 @@ class PrepareForRendering:
                     cell_dimensions=cell_dimensions,
                     top_left_position_of_grid=top_left_position_of_grid,
                 )
-                if irow == 0 and icol == 0:
-                    print(f"{top_left_position_of_grid = }, {top_left_of_cell = }")
                 cell_renderables: Iterable[Renderable] = PrepareForRendering.renderables_for_cell_tiles(
                     tile_prototypes=tile_prototypes,
                     grid_context_3x3=_create_grid_context_3x3(grid, irow, icol),
