@@ -1,7 +1,7 @@
 # from collections import namedtuple
 import os
 import numpy as np
-from typing import Tuple, Any, Iterable, Dict, NamedTuple, List
+from typing import Tuple, Any, Iterable, Dict, NamedTuple, List, Callable
 import neat
 
 from core.image import ImageConvert
@@ -86,12 +86,20 @@ class TilePrototypeMaker:
             "wall": os.path.join("data", "sprites", "dummy_wall_terracotta_32x12.png"),
             "roof": os.path.join("data", "sprites", "dummy_roof_blue_32x20.png"),
         },
+        image_generating_function: Callable[
+            [Any, Iterable[float], Tuple[int, int], Iterable[Tuple[int, int, int, int]]],
+            Tuple[np.ndarray, np.ndarray]
+        ] = None
     ) -> None:
         self.tiles_types_to_populations_configs = tiles_types_to_populations_configs
         self.sprite_dimensions = sprite_dimensions
         self.sprite_palettes = sprite_palettes
         self.nn_inputs = nn_inputs
         self.paths_to_default_pngs = paths_to_default_pngs
+        if image_generating_function is None:
+            self.image_generating_function = TilePrototypeMaker.rgb_and_alpha
+        else:
+            self.image_generating_function = image_generating_function
         # TODO: Validate given data.
         # Make sure set of sprite types (keys) matches for all dictionaries.
 
@@ -111,7 +119,7 @@ class TilePrototypeMaker:
             neural_network, nn_inputs: Iterable[Tuple]
         ) -> Dict[Iterable[int], Tuple[np.ndarray, np.ndarray]]:
             return {
-                nn_input: TilePrototypeMaker.rgb_and_alpha(
+                nn_input: self.image_generating_function(
                         neural_network,
                         nn_input,
                         self.sprite_dimensions[tile_type],

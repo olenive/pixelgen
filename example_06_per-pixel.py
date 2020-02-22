@@ -1,13 +1,16 @@
+"""Try an image generating function that produces per-pixel outputs from the NN."""
+
 import os
 import numpy as np
 import pygame
 import neat
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Iterable, Any, List
 
 from core.tiles import TilePrototypeMaker, TilePrototype
 from core.render import Render
 from ui.buttons import ToggleableIllustratedButtonArray
 from core.neat_interfaces import NeatInterfaces
+from core.image import ImageConvert
 
 
 sprite_palettes = {
@@ -33,6 +36,25 @@ sprite_palettes = {
 }
 
 
+def alt_rgb_and_alpha(
+    neural_network: Any,
+    nn_input: Iterable[int],
+    sprite_dimensions: Tuple[int, int],
+    palette: Iterable[Tuple[int, int, int, int]],
+) -> Tuple[np.ndarray, np.ndarray]:
+
+    def _normalise(value, maximum):
+        return (value + 1) / maximum
+
+    nn_2d_output = np.full((sprite_dimensions), np.nan)
+    for irow in range(sprite_dimensions[0]):
+        for icol in range(sprite_dimensions[1]):
+            x = _normalise(irow, sprite_dimensions[0])
+            y = _normalise(icol, sprite_dimensions[1])
+            nn_2d_output[irow, icol] = neural_network.activate(tuple(list(nn_input) + [x, y]))[0]
+    return ImageConvert.matrix_to_rgb_palette_and_alphas(nn_2d_output, palette)
+
+
 def config_for_this_example(path_to_config_file: str) -> neat.Config:
     return neat.Config(
         neat.DefaultGenome,
@@ -53,6 +75,7 @@ def prototype_tiles_from_genomes(
     tile_prototype_maker = TilePrototypeMaker(
         tiles_types_to_populations_configs=tile_types_to_populations_configs,
         sprite_palettes=sprite_palettes,
+        image_generating_function=alt_rgb_and_alpha,
     )
     return tile_prototype_maker.prototype_populations()
 
@@ -80,9 +103,9 @@ def main():
 
     # Determine NEAT configurations for each tile type.
     tile_types_to_configs = {
-        "floor": config_for_this_example(os.path.join("genome_configurations", "example_02_configs", "floor")),
-        "wall": config_for_this_example(os.path.join("genome_configurations", "example_02_configs", "wall")),
-        "roof": config_for_this_example(os.path.join("genome_configurations", "example_02_configs", "roof")),
+        "floor": config_for_this_example(os.path.join("genome_configurations", "example_06_configs", "floor")),
+        "wall": config_for_this_example(os.path.join("genome_configurations", "example_06_configs", "wall")),
+        "roof": config_for_this_example(os.path.join("genome_configurations", "example_06_configs", "roof")),
     }
 
     # Initialise populations of genomes for each tile type.
