@@ -13,7 +13,8 @@ from core.neat_interfaces import NeatInterfaces
 from core.image import ImageConvert
 
 
-PATH_TO_CONFIG_FILE_DIRECTORY = os.path.join("genome_configurations", "example_10_configs")
+PATH_TO_CONFIG_FILE_DIRECTORY = os.path.join("genome_configurations", "example_11_configs")
+
 
 sprite_palettes = {
     "floor": (
@@ -38,25 +39,38 @@ sprite_palettes = {
 }
 
 
-def rgb_from_nn(
+def by_rows_or_columns(
     neural_network: Any,
     nn_input: Iterable[int],
     sprite_dimensions: Tuple[int, int],
     palette: Iterable[Tuple[int, int, int, int]],
     tile_type=None,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Directly obtain RGB values from neural network without using the colour palette supplied."""
 
-    def _normalise(value, maximum):
-        return (value + 1) / maximum
+    def _collect_nn_output_row_by_row():
+        nn_3d_output = np.full((*sprite_dimensions, 3), np.nan)
+        previous_row_output = [0] * sprite_dimensions[0] * 3
+        for irow in range(sprite_dimensions[1]):
+            row_output = neural_network.activate(tuple(list(nn_input) + previous_row_output))
+            nn_3d_output[:, irow, :] = np.reshape(row_output, (32, 3))
+            previous_row_output = row_output
+        return nn_3d_output
+
+    def _collect_nn_output_column_by_column():
+        nn_3d_output = np.full((*sprite_dimensions, 3), np.nan)
+        previous_column_output = [0] * sprite_dimensions[1] * 3
+        for icol in range(sprite_dimensions[0]):
+            column_output = neural_network.activate(tuple(list(nn_input) + previous_column_output))
+            nn_3d_output[icol, :, :] = np.reshape(column_output, (20, 3))
+            previous_column_output = column_output
+        return nn_3d_output
 
     alphas = np.full(sprite_dimensions, 255)
-    nn_3d_output = np.full((*sprite_dimensions, 3), np.nan)
-    for irow in range(sprite_dimensions[0]):
-        for icol in range(sprite_dimensions[1]):
-            x = _normalise(irow, sprite_dimensions[0])
-            y = _normalise(icol, sprite_dimensions[1])
-            nn_3d_output[irow, icol, :] = neural_network.activate(tuple(list(nn_input) + [x, y]))
+    if tile_type == "wall":
+        nn_3d_output = _collect_nn_output_row_by_row()
+    else:
+        nn_3d_output = _collect_nn_output_column_by_column()
+
     return np.round(nn_3d_output * 255), alphas
 
 
@@ -80,7 +94,7 @@ def prototype_tiles_from_genomes(
     tile_prototype_maker = TilePrototypeMaker(
         tiles_types_to_populations_configs=tile_types_to_populations_configs,
         sprite_palettes=sprite_palettes,
-        image_generating_function=rgb_from_nn,
+        image_generating_function=by_rows_or_columns,
     )
     return tile_prototype_maker.prototype_populations()
 
@@ -195,7 +209,7 @@ def main():
                     )
 
         if running:  # This if statement prevents a segfault from occuring when closing the pygame window.
-            screen.fill((50, 50, 50))
+            screen.fill((125, 125, 125))
 
             # Draw button contents
             renderables = buttons_array.collect_renderables()
