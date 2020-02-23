@@ -41,18 +41,20 @@ def row_by_row(
     nn_input: Iterable[int],
     sprite_dimensions: Tuple[int, int],
     palette: Iterable[Tuple[int, int, int, int]],
+    tile_type=None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Generate an image by giving a NN the previous row as an input and using its output as the new row."""
 
     def _normalise(value, maximum):
         return (value + 1) / maximum
 
-    nn_2d_output = np.full((sprite_dimensions), np.nan)
-    for irow in range(sprite_dimensions[0]):
-        for icol in range(sprite_dimensions[1]):
-            x = _normalise(irow, sprite_dimensions[0])
-            y = _normalise(icol, sprite_dimensions[1])
-            nn_2d_output[irow, icol] = neural_network.activate(tuple(list(nn_input) + [x, y]))[0]
+    nn_2d_output = np.full((sprite_dimensions[0], sprite_dimensions[1]), np.nan)
+    previous_row_output = [0] * sprite_dimensions[0]
+    for irow in range(sprite_dimensions[1]):
+        row_output = neural_network.activate(tuple(list(nn_input) + previous_row_output))
+        nn_2d_output[:, irow] = row_output
+        previous_row_output = row_output
+
     return ImageConvert.matrix_to_rgb_palette_and_alphas(nn_2d_output, palette)
 
 

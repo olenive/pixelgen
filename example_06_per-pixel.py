@@ -41,6 +41,7 @@ def alt_rgb_and_alpha(
     nn_input: Iterable[int],
     sprite_dimensions: Tuple[int, int],
     palette: Iterable[Tuple[int, int, int, int]],
+    tile_type=None,
 ) -> Tuple[np.ndarray, np.ndarray]:
 
     def _normalise(value, maximum):

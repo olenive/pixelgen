@@ -108,6 +108,7 @@ class TilePrototypeMaker:
         nn_input: Iterable[int],
         sprite_dimensions: Tuple[int, int],
         palette: Iterable[Tuple[int, int, int, int]],
+        tile_type=None,
     ) -> Tuple[np.ndarray, np.ndarray]:
         nn_output: List = neural_network.activate(nn_input)
         reshaped_output = np.reshape(np.array(nn_output), sprite_dimensions)
@@ -116,7 +117,7 @@ class TilePrototypeMaker:
     def prototype_populations(self) -> Dict[str, Dict[int, TilePrototype]]:
         """Make a dictionary of tile types to dictionaries of genome ids to TilePrototype instances."""
         def _inputs_to_arrays(
-            neural_network, nn_inputs: Iterable[Tuple]
+            neural_network, nn_inputs: Iterable[Tuple], tile_type: str,
         ) -> Dict[Iterable[int], Tuple[np.ndarray, np.ndarray]]:
             return {
                 nn_input: self.image_generating_function(
@@ -124,6 +125,7 @@ class TilePrototypeMaker:
                         nn_input,
                         self.sprite_dimensions[tile_type],
                         self.sprite_palettes[tile_type],
+                        tile_type=tile_type,
                     )
                 for nn_input in nn_inputs
             }
@@ -139,7 +141,7 @@ class TilePrototypeMaker:
                     genome_id=genome_id,
                     config=config,
                     neural_network=neural_network,
-                    inputs_to_rgbs_and_alphas=_inputs_to_arrays(neural_network, self.nn_inputs[tile_type])
+                    inputs_to_rgbs_and_alphas=_inputs_to_arrays(neural_network, self.nn_inputs[tile_type], tile_type)
                 )
             tile_types_dict[tile_type] = genomes_dict
         return tile_types_dict
