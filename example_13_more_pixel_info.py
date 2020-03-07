@@ -15,7 +15,7 @@ from core.image import ImageConvert
 from helpers.conversions import Convert
 
 
-PATH_TO_CONFIG_FILE_DIRECTORY = os.path.join("genome_configurations", "example_10b_configs")
+PATH_TO_CONFIG_FILE_DIRECTORY = os.path.join("genome_configurations", "example_13_configs")
 
 
 sprite_palettes = {
@@ -41,8 +41,6 @@ def rgb_from_nn(
 
     def _near_edge(index, maximum_length, tile_type) -> List[int]:
         if tile_type == "floor":
-            return [0, 0, 0, 0]
-        elif nn_input[1] == 0:
             return [0, 0, 0, 0]
 
         if index == 0:
@@ -81,14 +79,15 @@ def rgb_from_nn(
         for icol in range(sprite_dimensions[1]):
             x = _normalise(irow, sprite_dimensions[0])
             y = _normalise(icol, sprite_dimensions[1])
+            mx = 1 - x
+            my = 1 - y
             near_x_edge = _near_edge(irow, sprite_dimensions[0], tile_type)
             near_y_edge = _near_edge(icol, sprite_dimensions[1], tile_type)
             nn_out_3d: List = neural_network.activate(
-                tuple(list(nn_input) + [x, y] + near_x_edge + near_y_edge)
+                tuple(list(nn_input) + [x, y, mx, my] + near_x_edge + near_y_edge)
             )
             index = _index_of_nearest_on_palette(palette, nn_out_3d)
             rgb_from_palette = _select_rgb(palette, index)
-            # resulting_rgb = _average_rgbs(rgb_from_palette, tuple(np.array(nn_out_3d) * 255))
             resulting_rgb = _nudge_rgbs(np.array(rgb_from_palette), np.array(nn_out_3d) * 255)
             rgb_out[irow, icol, :] = resulting_rgb
 
