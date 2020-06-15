@@ -19,8 +19,8 @@ PATH_TO_CONFIG_FILE_DIRECTORY = os.path.join("genome_configurations", "example_1
 
 
 sprite_palettes = {
-    "floor": tuple(map(Convert.hex_to_rgb, ("BE905A", "4BA98E", "A55C4A", "2D2028"))),
-    "wall": tuple(map(Convert.hex_to_rgb, ("887E84", "D6B785", "9C597F", "41415A"))),
+    "floor": tuple(map(Convert.hex_to_rgb, ("393224", "74695B", "869894", "818B8D"))),
+    "wall": tuple(map(Convert.hex_to_rgb, ("D7A847", "B1A77C", "986D54", "372313"))),
     "roof": tuple(map(Convert.hex_to_rgb, ("9199A7", "3760C5", "6C70B2", "232028"))),
 }
 
