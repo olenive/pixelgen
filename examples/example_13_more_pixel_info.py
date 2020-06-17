@@ -2,20 +2,24 @@
 
 import os
 import numpy as np
+from functools import reduce
 import pygame
 import neat
-import itertools
 from typing import Dict, Tuple, Iterable, Any, List
+from pathlib import Path
 
 from core.tiles import TilePrototypeMaker, TilePrototype
 from core.render import Render
-from ui.buttons import ToggleableIllustratedButtonArray
+from ui.buttons import ToggleableIllustratedButtonArray, TextButton
 from core.neat_interfaces import NeatInterfaces
-from core.image import ImageConvert
 from helpers.conversions import Convert
+from helpers.timestamps import Timestamps
+from helpers.io import Pickler
+from core.image import MakeSurface
 
 
 PATH_TO_CONFIG_FILE_DIRECTORY = os.path.join("genome_configurations", "example_13_configs")
+EXPORT_DIRECTORY = os.path.join("generated_tile_sets", "pngs_from_example_13", "")
 
 
 sprite_palettes = {
@@ -69,7 +73,6 @@ def rgb_from_nn(
         direction_vector = destination - origin
         distance = np.linalg.norm(direction_vector)
         unit_vector = direction_vector / distance
-        # nudge_magnitude = np.sqrt(distance)
         nudge_magnitude = distance
         return origin + unit_vector * nudge_magnitude * nudge_factor
 
@@ -133,12 +136,42 @@ def _set_genome_fitnesses(
 
 
 def _advance_populations(dict_with_populations: Dict[str, Tuple[neat.Population, neat.Config]]) -> None:
-    """Can this be less ugly?"""
     for _, (population, _) in dict_with_populations.items():
         NeatInterfaces.advance_to_next_generation(population)
 
 
+def _export_selection(toggleable_buttons: ToggleableIllustratedButtonArray):
+    print("Exporting selected tile images to PNG files and pickling tile prototype objects.")
+
+    def _concatenate_ints(given: Iterable[int]) -> str:
+        return reduce((lambda x, y: str(x) + "_" + str(y)), given)
+
+    export_directory: str = os.path.join(EXPORT_DIRECTORY, Timestamps.iso_now_seconds())
+    print(export_directory + "\n")
+    Path(export_directory).mkdir(parents=True, exist_ok=True)
+    for button in toggleable_buttons.buttons:
+        if button.state:
+            for tile_type in button.prototypes.keys():
+                prototype: TilePrototype = button.prototypes[tile_type]
+                # NOTE: it may be easier to work with the prototype objects than to parse .png file names.
+                Pickler.dump(prototype, os.path.join(export_directory, "prototype.pickle"))
+                for inputs_key in prototype.inputs_to_rgbs_and_alphas.keys():
+                    # Save PNGs.
+                    # The tuple of integers called inputs_key is used as a description of the relevant tiles
+                    # surrounding the given tile.
+                    file_name: str = tile_type + '_' + _concatenate_ints(inputs_key) + '.png'
+                    file_path: str = os.path.join(export_directory, file_name)
+                    rgb_array, alphas_array = prototype.inputs_to_rgbs_and_alphas[inputs_key]
+                    sprite = MakeSurface.from_rgb_and_alpha_arrays(rgb_array, alphas_array)
+                    pygame.image.save(sprite, file_path)
+
+            # TODO: Save genomes.
+
+
 def main():
+
+    # Initialize pygame fonts so that we can print text on buttons.
+    pygame.font.init()
 
     # Determine NEAT configurations for each tile type.
     tile_types_to_configs = {
@@ -154,17 +187,15 @@ def main():
 
     tiles_genomes_prototypes = prototype_tiles_from_genomes(tile_types_to_populations_configs)
 
-    # Render buttons and check that they are toggleable.
+    # Create array of buttons containing tiles
     grid = np.array([
         [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0],
         [0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0],
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0],
     ])
-
     button_width = np.shape(grid)[1] * 32 + 10
     button_height = np.shape(grid)[0] * 20 + 30
-
-    buttons_array = ToggleableIllustratedButtonArray(
+    toggleable_buttons = ToggleableIllustratedButtonArray(
         tile_grid=grid,
         rows_columns=(9, 1),
         cell_dimensions=(32, 20),
@@ -179,7 +210,15 @@ def main():
         tiles_genomes_prototypes=tiles_genomes_prototypes,
     )
 
-    screen = pygame.display.set_mode((button_width + 30, button_height * 9 + 50))
+    # Create export PNG button.
+    export_pngs_button = TextButton(
+        top_left=(button_width + 40, 20),
+        dimensions=(185, 30),
+        text="EXPORT SELECTED",
+        top_left_of_text=(8, 7)
+    )
+
+    screen = pygame.display.set_mode((button_width + 30 + 260, button_height * 9 + 50))
     maximum_frames = None
     running = True
     frame_counter = 0
@@ -197,11 +236,15 @@ def main():
                 running = False
                 break
 
-            # Toggle buttons in response to click.
             if event.type == pygame.MOUSEBUTTONDOWN:
-                for button in buttons_array.buttons:
+                # Toggle buttons in response to click.
+                for button in toggleable_buttons.buttons:
                     if button.rect.collidepoint(pygame.mouse.get_pos()):
                         button.state = not button.state
+
+                # Export PNG files containing selected sprites.
+                if export_pngs_button.rect.collidepoint(pygame.mouse.get_pos()):
+                    _export_selection(toggleable_buttons)
 
             # Advance generations.
             if event.type == pygame.KEYDOWN:
@@ -209,11 +252,11 @@ def main():
                     generation_counter += 1
                     print(f"Generation: {generation_counter}")
                     # Update genome fitnesses and generate new genomes within each population (mutate populations).
-                    _set_genome_fitnesses(tile_types_to_populations_configs, buttons_array)
+                    _set_genome_fitnesses(tile_types_to_populations_configs, toggleable_buttons)
                     _advance_populations(tile_types_to_populations_configs)
                     tiles_genomes_prototypes = prototype_tiles_from_genomes(tile_types_to_populations_configs)
                     # Create a new array of buttons using the new populations of genonmes.
-                    buttons_array = ToggleableIllustratedButtonArray(
+                    toggleable_buttons = ToggleableIllustratedButtonArray(
                         tile_grid=grid,
                         rows_columns=(9, 1),
                         cell_dimensions=(32, 20),
@@ -231,12 +274,15 @@ def main():
         if running:  # This if statement prevents a segfault from occuring when closing the pygame window.
             screen.fill((50, 50, 50))
 
-            # Draw button contents
-            renderables = buttons_array.collect_renderables()
+            # Draw toggleable button contents
+            renderables = toggleable_buttons.collect_renderables()
             Render.on_screen(screen, renderables)
 
-            # Draw button boarders.
-            buttons_array.draw_button_boarders(screen)
+            # Draw toggleable button boarders.
+            toggleable_buttons.draw_button_boarders(screen)
+
+            # Draw other butotns.
+            export_pngs_button.draw_button(screen)
 
             pygame.display.flip()
 

@@ -1,6 +1,7 @@
 from typing import Tuple, Iterable, Dict
 import pygame
 import numpy as np
+from dataclasses import dataclass
 
 from core.render import Renderable, MapGridToScreen, PrepareForRendering
 from core.tiles import TilePrototype
@@ -20,6 +21,7 @@ class ToggleableIllustratedButton:
         button_id: int,
         top_left: Tuple[int, int],
         dimensions: Tuple[int, int],
+        prototypes: Dict[str, TilePrototype],
         renderables: Iterable[Renderable],
         tile_types_to_genome_ids: Dict[str, int],
         initial_state: bool = False,
@@ -28,6 +30,7 @@ class ToggleableIllustratedButton:
         self.top_left = top_left
         self.dimensions = dimensions
         self.state = initial_state
+        self.prototypes = prototypes
         self.renderables = renderables
         self.rect = pygame.Rect(top_left, dimensions)
         self.tile_types_to_genome_ids = tile_types_to_genome_ids
@@ -69,7 +72,7 @@ class ToggleableIllustratedButtonArray:
         return out
 
     def _make_buttons(self) -> Iterable[ToggleableIllustratedButton]:
-        """Create button objects that can the be used to draw buttons on the screen and detect clicks."""
+        """Create button objects that can then be used to draw buttons on the screen and detect clicks."""
         buttons = []
         button_index = 0
         for irow in range(self.rows_columns[0]):
@@ -99,6 +102,7 @@ class ToggleableIllustratedButtonArray:
                         button_id=button_index,
                         top_left=top_left_position_of_button,
                         dimensions=self.button_dimensions,
+                        prototypes=prototypes,
                         renderables=button_renderables,
                         tile_types_to_genome_ids={tile: prototype.genome_id for tile, prototype in prototypes.items()}
                     )
@@ -116,6 +120,39 @@ class ToggleableIllustratedButtonArray:
     def draw_button_boarders(self, screen):
         for button in self.buttons:
             if button.state:
-                pygame.draw.rect(screen, [190, 190, 190, 200], button.rect, width=2)
+                pygame.draw.rect(screen, [240, 240, 240, 200], button.rect, width=4)
             else:
                 pygame.draw.rect(screen, [90, 90, 90, 200], button.rect, width=1)
+
+
+class TextButton:
+    """A button that can have some text displayed over it."""
+
+    def __init__(
+        self,
+        top_left: Tuple[int, int],
+        dimensions: Tuple[int, int],
+        text: str,
+        top_left_of_text=(5, 5),
+        text_colour=(10, 10, 10),
+    ):
+        self.top_left = top_left
+        self.dimensions = dimensions
+        self.text = text
+        self.top_left_of_text = top_left_of_text
+        self.text_colour = text_colour
+        self.rect = pygame.Rect(top_left, dimensions)
+
+    # def delay_font_use(self, font_name: str, size: int):
+    #     """This will give an error if called before pygame.init() or pygame.font.init()"""
+    #     return pygame.font.SysFont(font_name, size)
+
+    @staticmethod
+    def _relative_offset(outside: Tuple[int, int], inside: Tuple[int, int]) -> Tuple[int, int]:
+        return (outside[0] + inside[0], outside[1] + inside[1])
+
+    def draw_button(self, screen):
+        pygame.draw.rect(screen, [190, 190, 190, 200], self.rect, width=0)
+        myfont = pygame.font.SysFont('Comic Sans MS', 25)
+        textsurface = myfont.render(self.text, False, self.text_colour)
+        screen.blit(textsurface, self._relative_offset(self.top_left, self.top_left_of_text))

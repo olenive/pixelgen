@@ -12,3 +12,6 @@ __pycache__/
 # Jupyter caches
 .ipynb_checkpoints/
 
+# Generated data files
+generated_tile_sets/
+
