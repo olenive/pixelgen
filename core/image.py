@@ -112,7 +112,7 @@ class MakeSurface:
     The surface needs to have the same dimensions as the array and applying alpha requires mutating the Surface object.
     """
 
-    def from_rgb_and_alpha_arrays(rgb_array: np.ndarray, alpha_array) -> pygame.surface.Surface:
+    def from_rgb_and_alpha_arrays(rgb_array: np.ndarray, alpha_array: np.ndarray) -> pygame.surface.Surface:
         """Make a surface with an image from a 3D array of RGB values and a 2D array of alpha values."""
         draw_surface = pygame.surface.Surface(np.shape(alpha_array))
         pygame.surfarray.blit_array(draw_surface, rgb_array)

@@ -2,11 +2,13 @@ import pygame
 import time
 
 
-imgPath = "data/evaluation_grid_01.png"
+imgPath = "data/sprites/example.png"
 
 img = pygame.image.load(imgPath)
 sz = img.get_size()
 ret = pygame.Surface(sz)
+
+print(f"{img.get_size() = }")
 
 tStart = time.time()
 for x in range(sz[0]):

@@ -1,5 +1,7 @@
 import numpy as np
-from typing import Iterable, Dict, Tuple, Callable, NamedTuple
+from itertools import chain
+from typing import NamedTuple
+from typing import Iterable, Dict, Tuple, Callable
 import pygame
 
 from core.image import MakeSurface
